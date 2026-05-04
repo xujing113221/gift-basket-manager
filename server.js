@@ -12,6 +12,7 @@ const app = express();
 const PORT = 3000;
 const DB_PATH = path.join(__dirname, 'inventory.db');
 const IMAGES_DIR = path.join(__dirname, 'public', 'images');
+const BUNDLE_IMAGES_DIR = path.join(__dirname, 'public', 'images', 'bundles');
 
 // ─── 中间件 ───────────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
@@ -107,6 +108,28 @@ function createTables() {
       priority    INTEGER DEFAULT 0,
       done        INTEGER DEFAULT 0,
       created_at  TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_records (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id  INTEGER NOT NULL,
+      change_type TEXT DEFAULT '入库' CHECK(change_type IN ('入库','出库','盘点')),
+      quantity    INTEGER NOT NULL DEFAULT 0,
+      unit_price  REAL DEFAULT 0,
+      total_cost  REAL GENERATED ALWAYS AS (quantity * unit_price) STORED,
+      supplier    TEXT,
+      notes       TEXT,
+      created_at  TEXT DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS bundle_images (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      bundle_id   INTEGER NOT NULL,
+      image       TEXT NOT NULL,
+      sort_order  INTEGER DEFAULT 0,
+      created_at  TEXT DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (bundle_id) REFERENCES bundles(id) ON DELETE CASCADE
     );
   `);
 }
@@ -452,7 +475,8 @@ app.get('/api/bundles', (req, res) => {
       JOIN products p ON bi.product_id = p.id
       WHERE bi.bundle_id = ?
     `).all(b.id);
-    return { ...b, items };
+    const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(b.id);
+    return { ...b, items, images };
   });
   res.json({ ok: true, data });
 });
@@ -467,7 +491,8 @@ app.get('/api/bundles/:id', (req, res) => {
     JOIN products p ON bi.product_id = p.id
     WHERE bi.bundle_id = ?
   `).all(b.id);
-  res.json({ ok: true, data: { ...b, items } });
+  const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(b.id);
+  res.json({ ok: true, data: { ...b, items, images } });
 });
 
 // POST /api/bundles
@@ -509,7 +534,7 @@ app.post('/api/bundles', (req, res) => {
     SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bId);
-  res.status(201).json({ ok: true, data: { ...data, items: dataItems } });
+  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images: [] } });
 });
 
 // PUT /api/bundles/:id
@@ -562,7 +587,8 @@ app.put('/api/bundles/:id', (req, res) => {
     SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(id);
-  res.json({ ok: true, data: { ...data, items: dataItems } });
+  const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(id);
+  res.json({ ok: true, data: { ...data, items: dataItems, images } });
 });
 
 // DELETE /api/bundles/:id
@@ -596,7 +622,8 @@ app.post('/api/bundles/:id/items', (req, res) => {
     SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
-  res.status(201).json({ ok: true, data: { ...data, items: dataItems } });
+  const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(bundleId);
+  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images } });
 });
 
 // DELETE /api/bundles/:bundleId/items/:itemId — 从方案移除商品
@@ -618,7 +645,8 @@ app.delete('/api/bundles/:bundleId/items/:itemId', (req, res) => {
     SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
-  res.json({ ok: true, data: { ...data, items: dataItems } });
+  const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(bundleId);
+  res.json({ ok: true, data: { ...data, items: dataItems, images } });
 });
 
 // ── 竞品对比 API ──
@@ -858,10 +886,118 @@ app.delete('/api/products/:id/image', (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── 出入库记录 API ──────────────────────────────────────────
+
+// GET /api/stock-records — 查询出入库记录
+app.get('/api/stock-records', (req, res) => {
+  const { product_id } = req.query;
+  let sql = `SELECT sr.*, p.name as product_name FROM stock_records sr
+             JOIN products p ON sr.product_id = p.id`;
+  const params = [];
+  if (product_id) {
+    sql += ' WHERE sr.product_id = ?';
+    params.push(product_id);
+  }
+  sql += ' ORDER BY sr.created_at DESC';
+  const data = db.prepare(sql).all(...params);
+  res.json({ ok: true, data, total: data.length });
+});
+
+// POST /api/stock-records — 新增出入库记录（同步更新商品库存）
+app.post('/api/stock-records', (req, res) => {
+  const { product_id, change_type, quantity, unit_price, supplier, notes } = req.body;
+
+  if (!product_id) return res.status(400).json({ ok: false, error: '缺少 product_id' });
+  if (!change_type || !['入库','出库','盘点'].includes(change_type))
+    return res.status(400).json({ ok: false, error: '无效的 change_type' });
+  if (!quantity || quantity <= 0) return res.status(400).json({ ok: false, error: '数量必须大于0' });
+
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(product_id);
+  if (!product) return res.status(400).json({ ok: false, error: '商品不存在' });
+
+  const price = unit_price !== undefined ? unit_price : product.unit_price;
+
+  const result = db.prepare(`INSERT INTO stock_records (product_id, change_type, quantity, unit_price, supplier, notes)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(product_id, change_type, quantity, price, supplier || null, notes || null);
+
+  // 更新商品库存：入库/盘点加，出库减
+  const stockDelta = change_type === '出库' ? -quantity : quantity;
+  db.prepare('UPDATE products SET stock = stock + ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
+    .run(stockDelta, product_id);
+
+  const data = db.prepare(`SELECT sr.*, p.name as product_name FROM stock_records sr
+    JOIN products p ON sr.product_id = p.id WHERE sr.id = ?`).get(result.lastInsertRowid);
+  res.status(201).json({ ok: true, data });
+});
+
+// DELETE /api/stock-records/:id — 删除出入库记录（反向更新库存）
+app.delete('/api/stock-records/:id', (req, res) => {
+  const record = db.prepare('SELECT * FROM stock_records WHERE id = ?').get(req.params.id);
+  if (!record) return res.status(404).json({ ok: false, error: '记录不存在' });
+
+  // 反向库存：入库记录删除后减库存，出库记录删除后加库存
+  const reverseDelta = record.change_type === '出库' ? record.quantity : -record.quantity;
+  db.prepare('UPDATE products SET stock = stock + ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
+    .run(reverseDelta, record.product_id);
+
+  db.prepare('DELETE FROM stock_records WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ─── 方案图片 API ──────────────────────────────────────────────
+
+// POST /api/bundles/:id/images — 上传方案展示图（支持多图）
+app.post('/api/bundles/:id/images', (req, res) => {
+  const bundleId = req.params.id;
+  const bundle = db.prepare('SELECT * FROM bundles WHERE id = ?').get(bundleId);
+  if (!bundle) return res.status(404).json({ ok: false, error: '方案不存在' });
+
+  const { images } = req.body; // 期望 [{ image: "base64...", sort_order: 0 }, ...]
+  if (!images || !Array.isArray(images) || images.length === 0)
+    return res.status(400).json({ ok: false, error: '缺少图片数据（images 数组）' });
+
+  const savedImages = [];
+  const insertImage = db.prepare('INSERT INTO bundle_images (bundle_id, image, sort_order) VALUES (?, ?, ?)');
+
+  for (const img of images) {
+    if (!img.image) continue;
+
+    let ext = 'jpg';
+    let data = img.image;
+    const matches = img.image.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (matches) {
+      ext = matches[1] === 'png' ? 'png' : 'jpg';
+      data = matches[2];
+    }
+
+    const filename = `bundle_${bundleId}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.${ext}`;
+    fs.writeFileSync(path.join(BUNDLE_IMAGES_DIR, filename), Buffer.from(data, 'base64'));
+
+    const result = insertImage.run(bundleId, filename, img.sort_order || 0);
+    savedImages.push(db.prepare('SELECT * FROM bundle_images WHERE id = ?').get(result.lastInsertRowid));
+  }
+
+  res.status(201).json({ ok: true, data: savedImages });
+});
+
+// DELETE /api/bundles/:id/images/:imageId — 删除方案展示图
+app.delete('/api/bundles/:id/images/:imageId', (req, res) => {
+  const { id, imageId } = req.params;
+  const image = db.prepare('SELECT * FROM bundle_images WHERE id = ? AND bundle_id = ?').get(imageId, id);
+  if (!image) return res.status(404).json({ ok: false, error: '图片不存在' });
+
+  const filePath = path.join(BUNDLE_IMAGES_DIR, image.image);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+  db.prepare('DELETE FROM bundle_images WHERE id = ?').run(imageId);
+  res.json({ ok: true });
+});
+
 // ─── 启动服务器 ───────────────────────────────────────────────
 
 // 确保 images 目录存在
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+if (!fs.existsSync(BUNDLE_IMAGES_DIR)) fs.mkdirSync(BUNDLE_IMAGES_DIR, { recursive: true });
 
 // ─── 图片上传 API ─────────────────────────────────────────────
 
@@ -907,6 +1043,7 @@ app.delete('/api/products/:id/image', (req, res) => {
 
 // ─── 确保 images 目录存在 ─────────────────────────────────────
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+if (!fs.existsSync(BUNDLE_IMAGES_DIR)) fs.mkdirSync(BUNDLE_IMAGES_DIR, { recursive: true });
 
 initDatabase();
 

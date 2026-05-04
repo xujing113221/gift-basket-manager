@@ -155,6 +155,16 @@
   .competitor-card .details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .competitor-card.open .details { display: block; }
 
+  /* ─── 方案卡片(可折叠) ─── */
+  .bundle-card .summary { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); align-items: center; }
+  .bundle-card .expand-icon { cursor: pointer; font-size: 18px; transition: transform 0.2s; user-select: none; }
+  .bundle-card.expanded .expand-icon { transform: rotate(90deg); }
+  .bundle-card .body { display: none; margin-top: 12px; }
+  .bundle-card.expanded .body { display: block; }
+  .bundle-images { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .bundle-images img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+  .bundle-images img:hover { border-color: var(--primary); }
+
   /* ─── 运营看板 ─── */
   .ops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .ops-card {
@@ -255,11 +265,12 @@
 <!-- Tab 导航 -->
 <div class="tabs" id="tabs">
   <button class="tab-btn active" data-tab="dashboard">📊 仪表盘</button>
-  <button class="tab-btn" data-tab="products">📦 货物清单</button>
+  <button class="tab-btn" data-tab="products">📦 库存清单</button>
   <button class="tab-btn" data-tab="bundles">🧺 成品方案</button>
   <button class="tab-btn" data-tab="competitors">🔍 竞品对比</button>
   <button class="tab-btn" data-tab="calculator">🧮 计算器</button>
   <button class="tab-btn" data-tab="ops">📋 运营看板</button>
+  <button class="tab-btn" data-tab="stock">📋 进货记录</button>
 </div>
 
 <!-- ═══ 仪表盘 ═══ -->
@@ -287,7 +298,7 @@
   </div>
   <div class="card">
     <div class="table-wrap"><table><thead><tr>
-      <th style="width:56px;">图片</th><th>名称</th><th>分类</th><th class="text-right">单价</th><th>来源</th><th>尺寸</th><th>操作</th>
+      <th style="width:56px;">图片</th><th>名称</th><th>分类</th><th class="text-right">单价</th><th class="text-center">库存</th><th>来源</th><th>尺寸</th><th>操作</th>
     </tr></thead><tbody id="product-table"></tbody></table></div>
   </div>
 </div>
@@ -338,6 +349,22 @@
       <button class="btn btn-primary btn-sm" onclick="openChecklistModal()">＋ 新增</button>
     </div>
     <div id="checklist-items"></div>
+  </div>
+</div>
+
+<!-- ═══ 进货记录 ═══ -->
+<div class="page" id="page-stock">
+  <div class="toolbar">
+    <select id="stock-filter-product" style="max-width:300px;" onchange="loadStockRecords()">
+      <option value="">全部商品</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="btn btn-primary" onclick="openStockRecordModal()">＋ 新增记录</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table><thead><tr>
+      <th>时间</th><th>商品</th><th>类型</th><th class="text-center">数量</th><th class="text-right">单价</th><th class="text-right">金额</th><th>供应商</th><th>备注</th><th>操作</th>
+    </tr></thead><tbody id="stock-table"></tbody></table></div>
   </div>
 </div>
 
@@ -401,6 +428,7 @@ document.getElementById('tabs').addEventListener('click', e => {
   if (tab === 'competitors') loadCompetitors();
   if (tab === 'calculator') { loadCalcProducts(); recalcCalculator(); }
   if (tab === 'ops') loadOps();
+  if (tab === 'stock') loadStockRecords();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -463,7 +491,7 @@ function renderProducts() {
   if (productSearch) list = list.filter(p => p.name.includes(productSearch));
 
   const tbody = document.getElementById('product-table');
-  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty">暂无商品</div></td></tr>'; return; }
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">暂无商品</div></td></tr>'; return; }
   tbody.innerHTML = list.map(p => `<tr>
     <td>${p.image
       ? `<img src="/images/${esc(p.image)}" class="thumb-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" title="${esc(p.name)}"><div class="thumb-placeholder" style="display:none;">📷</div>`
@@ -471,6 +499,7 @@ function renderProducts() {
     <td><a class="link-name" onclick="productDetail(${p.id})" title="查看详情">${esc(p.name)}</a></td>
     <td><span class="badge" style="background:var(--primary-light);color:var(--primary);">${p.category}</span></td>
     <td class="text-right money">¥${p.unit_price.toFixed(2)}</td>
+    <td class="text-center">${p.stock||0}</td>
     <td>${p.link ? `<a class="link-source" href="${escAttr(p.link)}" target="_blank" onclick="event.stopPropagation()" title="打开购买链接">${p.source || '🔗'}</a>` : (p.source || '-')}</td>
     <td>${p.box_length ? `${p.box_length}×${p.box_width||'-'}×${p.box_height||'-'}` : '-'}</td>
     <td>
@@ -533,12 +562,13 @@ function openProductModal(id) {
     </div>
     <div class="form-row">
       <div class="form-group"><label>单价</label><input type="number" step="0.01" id="pf-price" value="${product?.unit_price||0}"></div>
-      <div class="form-group"><label>单位</label><input id="pf-unit" value="${escAttr(product?.unit||'个')}"></div>
+      <div class="form-group"><label>库存</label><input type="number" id="pf-stock" value="${product?.stock||0}"></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label>单位</label><input id="pf-unit" value="${escAttr(product?.unit||'个')}"></div>
       <div class="form-group"><label>来源</label><input id="pf-source" value="${escAttr(product?.source||'')}"></div>
-      <div class="form-group"><label>链接</label><input id="pf-link" value="${escAttr(product?.link||'')}"></div>
     </div>
+    <div class="form-group"><label>链接</label><input id="pf-link" value="${escAttr(product?.link||'')}"></div>
     <div class="form-row-3">
       <div class="form-group"><label>长(cm)</label><input type="number" step="0.1" id="pf-len" value="${product?.box_length||''}"></div>
       <div class="form-group"><label>宽(cm)</label><input type="number" step="0.1" id="pf-wid" value="${product?.box_width||''}"></div>
@@ -570,6 +600,7 @@ async function saveProduct(id) {
     category: document.getElementById('pf-category').value,
     subcategory: document.getElementById('pf-sub').value,
     unit_price: parseFloat(document.getElementById('pf-price').value) || 0,
+    stock: parseInt(document.getElementById('pf-stock').value) || 0,
     unit: document.getElementById('pf-unit').value || '个',
     source: document.getElementById('pf-source').value,
     link: document.getElementById('pf-link').value,
@@ -598,6 +629,77 @@ async function deleteProduct(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  进货记录
+// ═══════════════════════════════════════════════════════════════
+async function loadStockRecords() {
+  const pid = document.getElementById('stock-filter-product').value;
+  const products = (await apiGet('/products')).data || [];
+  const sel = document.getElementById('stock-filter-product');
+  sel.innerHTML = '<option value="">全部商品</option>' + products.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  if (pid) sel.value = pid;
+
+  const res = await apiGet('/stock-records' + (pid ? '?product_id='+pid : ''));
+  const tbody = document.getElementById('stock-table');
+  if (!res.ok || res.data.length === 0) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty">暂无记录</div></td></tr>'; return; }
+  tbody.innerHTML = res.data.map(r => `<tr>
+    <td>${r.created_at?.substr(0,16)}</td>
+    <td>${esc(r.product_name)}</td>
+    <td><span class="badge" style="background:${r.change_type==='入库'?'#d1fae5':r.change_type==='出库'?'#fee2e2':'#fef3c7'};color:${r.change_type==='入库'?'#065f46':r.change_type==='出库'?'#991b1b':'#92400e'};">${r.change_type}</span></td>
+    <td class="text-center">${r.quantity}</td>
+    <td class="text-right money">¥${r.unit_price?.toFixed(2)}</td>
+    <td class="text-right money">¥${(r.quantity * r.unit_price).toFixed(2)}</td>
+    <td>${r.supplier||'-'}</td>
+    <td>${r.notes||'-'}</td>
+    <td><button class="btn-icon" onclick="deleteStockRecord(${r.id})">🗑️</button></td>
+  </tr>`).join('');
+}
+
+function openStockRecordModal() {
+  apiGet('/products').then(pres => {
+    const products = (pres.data||[]).filter(p => p.category !== '盒子' || p.unit_price > 0);
+    document.getElementById('modal-title').textContent = '＋ 进货记录';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-group"><label>商品 *</label>
+        <select id="sr-product">${products.map(p => `<option value="${p.id}">${esc(p.name)} (库存:${p.stock||0})</option>`).join('')}</select></div>
+      <div class="form-row">
+        <div class="form-group"><label>类型</label>
+          <select id="sr-type"><option>入库</option><option>出库</option><option>盘点</option></select></div>
+        <div class="form-group"><label>数量</label><input type="number" id="sr-qty" value="1" min="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>单价</label><input type="number" step="0.01" id="sr-price" value="0"></div>
+        <div class="form-group"><label>供应商</label><input id="sr-supplier"></div>
+      </div>
+      <div class="form-group"><label>备注</label><input id="sr-notes"></div>`;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveStockRecord()">保存</button>`;
+    document.getElementById('modal-overlay').classList.add('active');
+  });
+}
+
+async function saveStockRecord() {
+  const body = {
+    product_id: parseInt(document.getElementById('sr-product').value),
+    change_type: document.getElementById('sr-type').value,
+    quantity: parseInt(document.getElementById('sr-qty').value),
+    unit_price: parseFloat(document.getElementById('sr-price').value) || 0,
+    supplier: document.getElementById('sr-supplier').value || null,
+    notes: document.getElementById('sr-notes').value || null,
+  };
+  const res = await apiPost('/stock-records', body);
+  if (res.ok) { toast('记录已保存'); closeModal(); loadStockRecords(); }
+  else toast(res.error||'保存失败','error');
+}
+
+async function deleteStockRecord(id) {
+  if (!confirm('确定删除？')) return;
+  const res = await apiDelete('/stock-records/'+id);
+  if (res.ok) { toast('已删除'); loadStockRecords(); }
+  else toast(res.error||'删除失败','error');
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  成品方案
 // ═══════════════════════════════════════════════════════════════
 async function loadBundles() {
@@ -607,35 +709,44 @@ async function loadBundles() {
   if (res.data.length === 0) { el.innerHTML = '<div class="empty">暂无方案</div>'; return; }
 
   el.innerHTML = res.data.map(b => `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div>
+    <div class="card bundle-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="expand-icon" onclick="this.closest('.bundle-card').classList.toggle('expanded')">▶</span>
           <strong style="font-size:16px;">${esc(b.name)}</strong>
-          <span style="margin-left:8px;"><span class="badge badge-${b.status==='已发布'?'published':b.status==='草稿'?'draft':'off'}">${b.status||'草稿'}</span></span>
-          ${b.box_type ? `<span style="color:var(--text-secondary);font-size:13px;margin-left:8px;">📦 ${esc(b.box_type)}</span>` : ''}
+          <span class="badge badge-${b.status==='已发布'?'published':b.status==='草稿'?'draft':'off'}">${b.status||'草稿'}</span>
+          ${b.box_type ? `<span style="color:var(--text-secondary);font-size:13px;">📦 ${esc(b.box_type)}</span>` : ''}
         </div>
         <div class="btn-group">
           <button class="btn btn-sm" onclick="openBundleEditor(${b.id})">✏️ 编辑</button>
           <button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">🗑️</button>
         </div>
       </div>
-      <div class="table-wrap"><table>
-        <tr><th style="width:40px;"></th><th>商品</th><th>分类</th><th class="text-right">单价</th><th class="text-center">数量</th><th class="text-right">小计</th></tr>
-        ${(b.items||[]).map(i => `<tr>
-          <td>${i.image ? `<img src="/images/${esc(i.image)}" class="thumb-img">` : `<div class="thumb-placeholder" style="width:36px;height:36px;font-size:9px;">📷</div>`}</td>
-          <td>${esc(i.product_name)}</td><td>${i.category||'-'}</td>
-          <td class="text-right money">¥${i.unit_price?.toFixed(2)}</td>
-          <td class="text-center">${i.quantity}</td>
-          <td class="text-right money">¥${(i.quantity * i.unit_price).toFixed(2)}</td>
-        </tr>`).join('')}
-        <tr style="font-weight:700;background:var(--primary-light);">
-          <td colspan="5" class="text-right">成本 / 售价</td>
-          <td class="text-right money">¥${b.total_cost?.toFixed(2)} / ¥${b.sell_price?.toFixed(2)}</td>
-        </tr>
-      </table></div>
-      <div style="display:flex;gap:16px;margin-top:8px;font-size:13px;color:var(--text-secondary);">
-        <span>利润率: <strong style="color:var(--primary);">${b.margin_rate}%</strong></span>
+      <div class="summary">
+        <span>成本: <strong>¥${b.total_cost?.toFixed(2)}</strong></span>
+        <span>售价: <strong style="color:var(--primary);">¥${b.sell_price?.toFixed(2)}</strong></span>
+        <span>利润率: <strong>${b.margin_rate}%</strong></span>
         <span>利润: <strong style="color:var(--success);">¥${b.margin_amount?.toFixed(2)}</strong></span>
+      </div>
+      <div class="body">
+        <div class="table-wrap"><table>
+          <tr><th style="width:40px;"></th><th>商品</th><th>分类</th><th class="text-right">单价</th><th class="text-center">数量</th><th class="text-right">小计</th></tr>
+          ${(b.items||[]).map(i => `<tr>
+            <td>${i.image ? `<img src="/images/${esc(i.image)}" class="thumb-img">` : `<div class="thumb-placeholder" style="width:36px;height:36px;font-size:9px;">📷</div>`}</td>
+            <td>${esc(i.product_name)}</td><td>${i.category||'-'}</td>
+            <td class="text-right money">¥${i.unit_price?.toFixed(2)}</td>
+            <td class="text-center">${i.quantity}</td>
+            <td class="text-right money">¥${(i.quantity * i.unit_price).toFixed(2)}</td>
+          </tr>`).join('')}
+          <tr style="font-weight:700;background:var(--primary-light);">
+            <td colspan="5" class="text-right">成本 / 售价</td>
+            <td class="text-right money">¥${b.total_cost?.toFixed(2)} / ¥${b.sell_price?.toFixed(2)}</td>
+          </tr>
+        </table></div>
+        ${(b.images && b.images.length > 0) ? `
+        <div class="bundle-images">
+          ${b.images.map(img => `<img src="${escAttr(img.image || img.url)}" onclick="window.open(this.src)" title="成品展示图">`).join('')}
+        </div>` : ''}
       </div>
     </div>
   `).join('');
