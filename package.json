@@ -1,0 +1,17 @@
+{
+  "name": "gift-basket-manager",
+  "version": "1.0.0",
+  "description": "伴手礼线上店管理后台 — GiftBasket Manager",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["gift", "basket", "management"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.6.0"
+  }
+}
