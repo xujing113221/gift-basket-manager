@@ -298,11 +298,10 @@
   @media (max-width: 700px) { .bundle-card { flex-direction: column; } .bundle-card .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; } }
 
   /* ─── 库存清单视图 ─── */
-  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-  .product-grid .product-grid-card { display: block; }
-  .product-list #product-grid-view { display: none; }
-  .product-grid #product-table-card { display: none; }
   .product-grid #product-grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .product-grid #product-table-card { display: none; }
+  .product-list #product-grid-view { display: none !important; }
+  .product-list #product-table-card { display: block; }
 </style>
 </head>
 <body>
