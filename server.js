@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GiftBasket Manager — 伴手礼管理后台
 // Express + better-sqlite3 全栈应用
 // ============================================================
@@ -115,78 +115,78 @@ function createTables() {
 
 const SEED_PRODUCTS = [
   // ===== 盒子 (22种) =====
-  { name: '竹篮中号', category: '盒子', subcategory: '编织篮', unit_price: 9.50, source: '1688', link: 'https://qr.1688.com/s/4RMLygY6', box_length: 20, box_width: 20, box_height: 30 },
-  { name: '环扣手拎包', category: '盒子', subcategory: '手提包', unit_price: 8.10, source: '1688', link: 'https://qr.1688.com/s/6FsO3Asd', box_length: 30, box_width: 16 },
-  { name: '拉链手拎包', category: '盒子', subcategory: '手提包', unit_price: 5.20, source: '1688', link: 'https://qr.1688.com/s/KsMRNdN7', box_length: 20, box_width: 10, box_height: 21 },
-  { name: '化妆包手拎(大号)', category: '盒子', subcategory: '化妆包', unit_price: 10.50, source: '1688', link: 'https://qr.1688.com/s/WAjAzvzc' },
-  { name: 'PVC透明手提袋(小)', category: '盒子', subcategory: '透明袋', unit_price: 1.10, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods1.html?ps=dQvEGcB8s7', box_length: 15, box_width: 13.5, box_height: 7 },
-  { name: 'PVC透明礼品袋(大)', category: '盒子', subcategory: '透明袋', unit_price: 0.68, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=m10CrG1wdk', box_length: 16, box_width: 15, box_height: 7 },
-  { name: '蛋糕盒子', category: '盒子', subcategory: '蛋糕盒', unit_price: 0.38, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=6M9wwOjWLe', box_length: 6 },
-  { name: '喜糖袋子中号', category: '盒子', subcategory: '喜糖袋', unit_price: 1.10, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=qGVoY4DtJ8', box_length: 16, box_width: 16 },
-  { name: '烫银盒子', category: '盒子', subcategory: '礼盒', unit_price: 0.58, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=BxVjU7fFnL', box_length: 13, box_width: 7, box_height: 6.5 },
-  { name: '白色方形盒子', category: '盒子', subcategory: '礼盒', unit_price: 6.84, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=FPpDgYTbFX', box_length: 20, box_width: 18, box_height: 8 },
-  { name: '白色圆形盒子', category: '盒子', subcategory: '礼盒', unit_price: 4.67, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=J46wPgWvo3', box_length: 16, box_height: 7 },
-  { name: '红色圆形盒子', category: '盒子', subcategory: '礼盒', unit_price: 6.90, source: '1688', link: 'https://qr.1688.com/s/hWDE3WEF', box_length: 19, box_width: 19, box_height: 11 },
+  { name: '竹篮中号', category: '盒子', subcategory: '编织篮', unit_price: 9.50, source: '1688', link: 'https://qr.1688.com/s/4RMLygY6', box_length: 20, box_width: 20, box_height: 30 , image: 'product_竹篮中号.png'},
+  { name: '环扣手拎包', category: '盒子', subcategory: '手提包', unit_price: 8.10, source: '1688', link: 'https://qr.1688.com/s/6FsO3Asd', box_length: 30, box_width: 16 , image: 'product_环扣手拎包.jpg'},
+  { name: '拉链手拎包', category: '盒子', subcategory: '手提包', unit_price: 5.20, source: '1688', link: 'https://qr.1688.com/s/KsMRNdN7', box_length: 20, box_width: 10, box_height: 21 , image: 'product_拉链手拎包.jpg'},
+  { name: '化妆包手拎(大号)', category: '盒子', subcategory: '化妆包', unit_price: 10.50, source: '1688', link: 'https://qr.1688.com/s/WAjAzvzc' , image: 'product_化妆包手拎大号.jpg'},
+  { name: 'PVC透明手提袋(小)', category: '盒子', subcategory: '透明袋', unit_price: 1.10, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods1.html?ps=dQvEGcB8s7', box_length: 15, box_width: 13.5, box_height: 7 , image: 'product_PVC透明手提袋小.png'},
+  { name: 'PVC透明礼品袋(大)', category: '盒子', subcategory: '透明袋', unit_price: 0.68, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=m10CrG1wdk', box_length: 16, box_width: 15, box_height: 7 , image: 'product_PVC透明礼品袋大.png'},
+  { name: '蛋糕盒子', category: '盒子', subcategory: '蛋糕盒', unit_price: 0.38, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=6M9wwOjWLe', box_length: 6 , image: 'product_蛋糕盒子.png'},
+  { name: '喜糖袋子中号', category: '盒子', subcategory: '喜糖袋', unit_price: 1.10, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=qGVoY4DtJ8', box_length: 16, box_width: 16 , image: 'product_喜糖袋子中号.png'},
+  { name: '烫银盒子', category: '盒子', subcategory: '礼盒', unit_price: 0.58, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=BxVjU7fFnL', box_length: 13, box_width: 7, box_height: 6.5 , image: 'product_烫银盒子.png'},
+  { name: '白色方形盒子', category: '盒子', subcategory: '礼盒', unit_price: 6.84, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=FPpDgYTbFX', box_length: 20, box_width: 18, box_height: 8 , image: 'product_白色方形盒子.png'},
+  { name: '白色圆形盒子', category: '盒子', subcategory: '礼盒', unit_price: 4.67, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods2.html?ps=J46wPgWvo3', box_length: 16, box_height: 7 , image: 'product_白色圆形盒子.png'},
+  { name: '红色圆形盒子', category: '盒子', subcategory: '礼盒', unit_price: 6.90, source: '1688', link: 'https://qr.1688.com/s/hWDE3WEF', box_length: 19, box_width: 19, box_height: 11 , image: 'product_红色圆形盒子.png'},
   { name: '粉色圆形盒子', category: '盒子', subcategory: '礼盒', unit_price: 7.50 },
-  { name: '信封式长方包装盒', category: '盒子', subcategory: '包装盒', unit_price: 0.55, source: '1688', link: 'https://qr.1688.com/s/3GjzYfYa', box_length: 19.5, box_width: 12.5 },
-  { name: '茶叶式长方包装盒(原木色)', category: '盒子', subcategory: '包装盒', unit_price: 1.30, source: '1688', link: 'https://qr.1688.com/s/MPbAtfJN', box_length: 18, box_width: 12, box_height: 5 },
-  { name: '上下盖长方包装盒(白色)', category: '盒子', subcategory: '包装盒', unit_price: 0.63, source: '1688', link: 'https://qr.1688.com/s/t4tHQTHW', box_length: 17, box_width: 9, box_height: 3.8 },
-  { name: '糖果礼盒', category: '盒子', subcategory: '礼盒', unit_price: 1.50, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=RV5riTaOra', box_length: 20, box_width: 12, box_height: 16 },
-  { name: '喜糖沙袋中号', category: '盒子', subcategory: '喜糖袋', unit_price: 0.32, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=NHED3LEeMD' },
+  { name: '信封式长方包装盒', category: '盒子', subcategory: '包装盒', unit_price: 0.55, source: '1688', link: 'https://qr.1688.com/s/3GjzYfYa', box_length: 19.5, box_width: 12.5 , image: 'product_信封式长方包装盒.png'},
+  { name: '茶叶式长方包装盒(原木色)', category: '盒子', subcategory: '包装盒', unit_price: 1.30, source: '1688', link: 'https://qr.1688.com/s/MPbAtfJN', box_length: 18, box_width: 12, box_height: 5 , image: 'product_茶叶式长方包装盒原木色.png'},
+  { name: '上下盖长方包装盒(白色)', category: '盒子', subcategory: '包装盒', unit_price: 0.63, source: '1688', link: 'https://qr.1688.com/s/t4tHQTHW', box_length: 17, box_width: 9, box_height: 3.8 , image: 'product_上下盖长方包装盒白色.png'},
+  { name: '糖果礼盒', category: '盒子', subcategory: '礼盒', unit_price: 1.50, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=RV5riTaOra', box_length: 20, box_width: 12, box_height: 16 , image: 'product_糖果礼盒.jpg'},
+  { name: '喜糖沙袋中号', category: '盒子', subcategory: '喜糖袋', unit_price: 0.32, source: '拼多多', link: 'https://mobile.yangkeduo.com/goods.html?ps=NHED3LEeMD' , image: 'product_喜糖沙袋中号.jpg'},
   { name: '牛皮纸袋', category: '盒子', subcategory: '纸袋', unit_price: 0.00 },
   { name: '针织包', category: '盒子', subcategory: '包装', unit_price: 0.00 },
   { name: '纸盒子椭圆', category: '盒子', subcategory: '包装盒', unit_price: 0.00 },
   { name: '快递费', category: '盒子', subcategory: '物流', unit_price: 1.30, unit: '次' },
 
   // ===== 辅料 (15种) =====
-  { name: '雪梨纸', category: '辅料', unit_price: 0.20, unit: '张', source: '1688' },
+  { name: '雪梨纸', category: '辅料', unit_price: 0.20, unit: '张', source: '1688' , image: 'product_雪梨纸.jpg'},
   { name: '丝带', category: '辅料', unit_price: 0.50, source: '1688' },
-  { name: '拉菲草', category: '辅料', unit_price: 9.25, unit: '斤', source: '拼多多' },
-  { name: '风吕敷-花', category: '辅料', unit_price: 0.54, source: '拼多多' },
-  { name: '盒子包装敷布', category: '辅料', unit_price: 2.25, source: '1688' },
+  { name: '拉菲草', category: '辅料', unit_price: 9.25, unit: '斤', source: '拼多多' , image: 'product_拉菲草.jpg'},
+  { name: '风吕敷-花', category: '辅料', unit_price: 0.54, source: '拼多多' , image: 'product_风吕敷-花.jpg'},
+  { name: '盒子包装敷布', category: '辅料', unit_price: 2.25, source: '1688' , image: 'product_盒子包装敷布.jpg'},
   { name: '卡片', category: '辅料', unit_price: 0.30 },
-  { name: '干花多头小玫瑰', category: '辅料', unit_price: 0.40, source: '拼多多' },
-  { name: '火漆蜡封口', category: '辅料', unit_price: 0.44, source: '拼多多' },
-  { name: '中国结挂件流苏', category: '辅料', unit_price: 0.52, source: '拼多多' },
-  { name: '石纹包装纸-细纹', category: '辅料', unit_price: 1.20, unit: '张', source: '1688' },
-  { name: '小喜字贴纸', category: '辅料', unit_price: 0.20, source: '拼多多' },
-  { name: '礼盒封口贴纸', category: '辅料', unit_price: 0.13, source: '拼多多' },
-  { name: '绳子100米', category: '辅料', unit_price: 3.00, source: '拼多多' },
-  { name: '麻绳300米', category: '辅料', unit_price: 20.00, source: '拼多多' },
-  { name: 'DIY编织线', category: '辅料', unit_price: 18.80, source: '拼多多' },
+  { name: '干花多头小玫瑰', category: '辅料', unit_price: 0.40, source: '拼多多' , image: 'product_干花多头小玫瑰.jpg'},
+  { name: '火漆蜡封口', category: '辅料', unit_price: 0.44, source: '拼多多' , image: 'product_火漆蜡封口.jpg'},
+  { name: '中国结挂件流苏', category: '辅料', unit_price: 0.52, source: '拼多多' , image: 'product_中国结挂件流苏.jpg'},
+  { name: '石纹包装纸-细纹', category: '辅料', unit_price: 1.20, unit: '张', source: '1688' , image: 'product_石纹包装纸-细纹.jpg'},
+  { name: '小喜字贴纸', category: '辅料', unit_price: 0.20, source: '拼多多' , image: 'product_小喜字贴纸.jpg'},
+  { name: '礼盒封口贴纸', category: '辅料', unit_price: 0.13, source: '拼多多' , image: 'product_礼盒封口贴纸.jpg'},
+  { name: '绳子100米', category: '辅料', unit_price: 3.00, source: '拼多多' , image: 'product_绳子100米.jpg'},
+  { name: '麻绳300米', category: '辅料', unit_price: 20.00, source: '拼多多' , image: 'product_麻绳300米.jpg'},
+  { name: 'DIY编织线', category: '辅料', unit_price: 18.80, source: '拼多多' , image: 'product_DIY编织线.jpg'},
 
   // ===== 糖果 (13种) =====
-  { name: '葡萄果汁软糖', category: '糖果', unit_price: 0.66 },
-  { name: '福袋软糖', category: '糖果', unit_price: 0.40 },
-  { name: '不二家棒棒糖', category: '糖果', unit_price: 0.60 },
-  { name: '俄罗斯紫皮糖', category: '糖果', unit_price: 0.40 },
-  { name: '旺仔牛奶糖', category: '糖果', unit_price: 0.25 },
-  { name: '星球杯巧克力', category: '糖果', unit_price: 0.76 },
-  { name: '喜事花生脆', category: '糖果', unit_price: 0.31 },
-  { name: '薯愿薯片', category: '糖果', unit_price: 1.33 },
-  { name: '红枣香酥脆', category: '糖果', unit_price: 0.50 },
-  { name: '恰恰瓜子', category: '糖果', unit_price: 0.56 },
-  { name: '喜之郎果冻', category: '糖果', unit_price: 1.30 },
-  { name: '徐福记酥糖', category: '糖果', unit_price: 0.30 },
-  { name: '马大姐酥糖', category: '糖果', unit_price: 0.30 },
+  { name: '葡萄果汁软糖', category: '糖果', unit_price: 0.66 , image: 'product_葡萄果汁软糖.jpg'},
+  { name: '福袋软糖', category: '糖果', unit_price: 0.40 , image: 'product_福袋软糖.jpg'},
+  { name: '不二家棒棒糖', category: '糖果', unit_price: 0.60 , image: 'product_不二家棒棒糖.jpg'},
+  { name: '俄罗斯紫皮糖', category: '糖果', unit_price: 0.40 , image: 'product_俄罗斯紫皮糖.jpg'},
+  { name: '旺仔牛奶糖', category: '糖果', unit_price: 0.25 , image: 'product_旺仔牛奶糖.jpg'},
+  { name: '星球杯巧克力', category: '糖果', unit_price: 0.76 , image: 'product_星球杯巧克力.jpg'},
+  { name: '喜事花生脆', category: '糖果', unit_price: 0.31 , image: 'product_喜事花生脆.jpg'},
+  { name: '薯愿薯片', category: '糖果', unit_price: 1.33 , image: 'product_薯愿薯片.jpg'},
+  { name: '红枣香酥脆', category: '糖果', unit_price: 0.50 , image: 'product_红枣香酥脆.jpg'},
+  { name: '恰恰瓜子', category: '糖果', unit_price: 0.56 , image: 'product_恰恰瓜子.jpg'},
+  { name: '喜之郎果冻', category: '糖果', unit_price: 1.30 , image: 'product_喜之郎果冻.png'},
+  { name: '徐福记酥糖', category: '糖果', unit_price: 0.30 , image: 'product_徐福记酥糖.jpg'},
+  { name: '马大姐酥糖', category: '糖果', unit_price: 0.30 , image: 'product_马大姐酥糖.jpg'},
 
   // ===== 单品 (21种) =====
-  { name: '遮光睡眠眼罩', category: '单品', unit_price: 2.20, source: '1688' },
-  { name: '保温杯', category: '单品', unit_price: 7.80, source: '1688' },
-  { name: '润护手霜', category: '单品', unit_price: 0.45, source: '1688' },
+  { name: '遮光睡眠眼罩', category: '单品', unit_price: 2.20, source: '1688' , image: 'product_遮光睡眠眼罩.jpg'},
+  { name: '保温杯', category: '单品', unit_price: 7.80, source: '1688' , image: 'product_保温杯.jpg'},
+  { name: '润护手霜', category: '单品', unit_price: 0.45, source: '1688' , image: 'product_润护手霜.jpg'},
   { name: '艾草锤养身锤', category: '单品', unit_price: 1.50 },
-  { name: '五齿粉色经络按摩梳', category: '单品', unit_price: 1.18, source: '1688' },
+  { name: '五齿粉色经络按摩梳', category: '单品', unit_price: 1.18, source: '1688' , image: 'product_五齿粉色经络按摩梳.jpg'},
   { name: '珍珠+爱心吊坠手串', category: '单品', unit_price: 2.00 },
-  { name: '马克杯子', category: '单品', unit_price: 6.80, source: '1688' },
-  { name: '毛巾', category: '单品', unit_price: 0.89, source: '拼多多' },
-  { name: '茶包-小盒', category: '单品', unit_price: 2.50, source: '1688' },
-  { name: '小罐茶大红袍', category: '单品', unit_price: 1.10, source: '拼多多' },
-  { name: '香皂香薰', category: '单品', unit_price: 5.50, source: '1688' },
-  { name: '迷你小梳子', category: '单品', unit_price: 1.70, source: '1688' },
-  { name: '钥匙扣', category: '单品', unit_price: 1.90, source: '1688' },
-  { name: '试管花茶', category: '单品', unit_price: 1.83, source: '拼多多' },
-  { name: '网红许愿兔', category: '单品', unit_price: 2.00, source: '拼多多' },
-  { name: '毛线仿真小花束', category: '单品', unit_price: 3.20, source: '1688' },
+  { name: '马克杯子', category: '单品', unit_price: 6.80, source: '1688' , image: 'product_马克杯子.jpg'},
+  { name: '毛巾', category: '单品', unit_price: 0.89, source: '拼多多' , image: 'product_毛巾.jpg'},
+  { name: '茶包-小盒', category: '单品', unit_price: 2.50, source: '1688' , image: 'product_茶包-小盒.jpg'},
+  { name: '小罐茶大红袍', category: '单品', unit_price: 1.10, source: '拼多多' , image: 'product_小罐茶大红袍.png'},
+  { name: '香皂香薰', category: '单品', unit_price: 5.50, source: '1688' , image: 'product_香皂香薰.jpg'},
+  { name: '迷你小梳子', category: '单品', unit_price: 1.70, source: '1688' , image: 'product_迷你小梳子.jpg'},
+  { name: '钥匙扣', category: '单品', unit_price: 1.90, source: '1688' , image: 'product_钥匙扣.jpg'},
+  { name: '试管花茶', category: '单品', unit_price: 1.83, source: '拼多多' , image: 'product_试管花茶.jpg'},
+  { name: '网红许愿兔', category: '单品', unit_price: 2.00, source: '拼多多' , image: 'product_网红许愿兔.jpg'},
+  { name: '毛线仿真小花束', category: '单品', unit_price: 3.20, source: '1688' , image: 'product_毛线仿真小花束.jpg'},
   { name: '梅见小瓶酒', category: '单品', unit_price: 5.00 },
   { name: '香薰', category: '单品', unit_price: 3.00 },
   { name: '润唇膏', category: '单品', unit_price: 2.00 },
@@ -202,8 +202,8 @@ function seedIfEmpty() {
   if (count > 0) return; // 已有数据，跳过
 
   const insertProduct = db.prepare(
-    `INSERT INTO products (name, category, subcategory, unit_price, unit, source, link, box_length, box_width, box_height)
-     VALUES (@name, @category, @subcategory, @unit_price, @unit, @source, @link, @box_length, @box_width, @box_height)`
+    `INSERT INTO products (name, category, subcategory, unit_price, unit, source, link, image, box_length, box_width, box_height)
+     VALUES (@name, @category, @subcategory, @unit_price, @unit, @source, @link, @image, @box_length, @box_width, @box_height)`
   );
 
   const insertMany = db.transaction((items) => {
@@ -216,6 +216,7 @@ function seedIfEmpty() {
         unit: item.unit || '个',
         source: item.source || null,
         link: item.link || null,
+        image: item.image || null,
         box_length: item.box_length || null,
         box_width: item.box_width || null,
         box_height: item.box_height || null,
@@ -505,7 +506,7 @@ app.post('/api/bundles', (req, res) => {
 
   const data = db.prepare('SELECT * FROM bundles WHERE id = ?').get(bId);
   const dataItems = db.prepare(`
-    SELECT bi.*, p.name as product_name, p.category, p.unit
+    SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bId);
   res.status(201).json({ ok: true, data: { ...data, items: dataItems } });
@@ -558,7 +559,7 @@ app.put('/api/bundles/:id', (req, res) => {
 
   const data = db.prepare('SELECT * FROM bundles WHERE id = ?').get(id);
   const dataItems = db.prepare(`
-    SELECT bi.*, p.name as product_name, p.category, p.unit
+    SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(id);
   res.json({ ok: true, data: { ...data, items: dataItems } });
@@ -592,7 +593,7 @@ app.post('/api/bundles/:id/items', (req, res) => {
 
   const data = db.prepare('SELECT * FROM bundles WHERE id = ?').get(bundleId);
   const dataItems = db.prepare(`
-    SELECT bi.*, p.name as product_name, p.category, p.unit
+    SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
   res.status(201).json({ ok: true, data: { ...data, items: dataItems } });
@@ -614,7 +615,7 @@ app.delete('/api/bundles/:bundleId/items/:itemId', (req, res) => {
 
   const data = db.prepare('SELECT * FROM bundles WHERE id = ?').get(bundleId);
   const dataItems = db.prepare(`
-    SELECT bi.*, p.name as product_name, p.category, p.unit
+    SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
   res.json({ ok: true, data: { ...data, items: dataItems } });
@@ -860,6 +861,51 @@ app.delete('/api/products/:id/image', (req, res) => {
 // ─── 启动服务器 ───────────────────────────────────────────────
 
 // 确保 images 目录存在
+if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+
+// ─── 图片上传 API ─────────────────────────────────────────────
+
+// POST /api/products/:id/image - 上传商品图片 (base64)
+app.post('/api/products/:id/image', (req, res) => {
+  const { image } = req.body;
+  if (!image) return res.status(400).json({ ok: false, error: '缺少图片数据' });
+
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ ok: false, error: '商品不存在' });
+
+  let ext = 'jpg';
+  let data = image;
+  const matches = image.match(/^data:image\/(\w+);base64,(.+)$/);
+  if (matches) { ext = matches[1] === 'png' ? 'png' : 'jpg'; data = matches[2]; }
+
+  if (existing.image) {
+    const oldPath = path.join(IMAGES_DIR, existing.image);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+
+  const filename = `product_${req.params.id}_${Date.now()}.${ext}`;
+  fs.writeFileSync(path.join(IMAGES_DIR, filename), Buffer.from(data, 'base64'));
+
+  db.prepare("UPDATE products SET image = ?, updated_at = datetime('now','localtime') WHERE id = ?")
+    .run(filename, req.params.id);
+
+  res.json({ ok: true, data: { image: filename } });
+});
+
+// DELETE /api/products/:id/image - 删除商品图片
+app.delete('/api/products/:id/image', (req, res) => {
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ ok: false, error: '商品不存在' });
+
+  if (existing.image) {
+    const filePath = path.join(IMAGES_DIR, existing.image);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+  db.prepare("UPDATE products SET image = NULL, updated_at = datetime('now','localtime') WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ─── 确保 images 目录存在 ─────────────────────────────────────
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
 initDatabase();
