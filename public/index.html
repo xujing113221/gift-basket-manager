@@ -296,6 +296,13 @@
   .view-toggle .btn-icon { width: 28px; height: 28px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
   .view-toggle .btn-icon.active { background: var(--primary); color: #fff; border-color: var(--primary); }
   @media (max-width: 700px) { .bundle-card { flex-direction: column; } .bundle-card .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; } }
+
+  /* ─── 库存清单视图 ─── */
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .product-grid .product-grid-card { display: block; }
+  .product-list #product-grid-view { display: none; }
+  .product-grid #product-table-card { display: none; }
+  .product-grid #product-grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 </style>
 </head>
 <body>
@@ -337,12 +344,19 @@
     </div>
     <div class="spacer"></div>
     <input class="search-input" id="product-search" placeholder="搜索商品..." style="max-width:200px">
+    <div class="view-toggle">
+      <button class="btn-icon active" id="pview-grid" onclick="setProductView('grid')" title="网格">⊞</button>
+      <button class="btn-icon" id="pview-list" onclick="setProductView('list')" title="列表">☰</button>
+    </div>
     <button class="btn btn-primary" onclick="openProductModal()">＋ 新增商品</button>
   </div>
-  <div class="card">
+  <div id="product-container" class="product-grid">
+    <div class="card" id="product-table-card">
     <div class="table-wrap"><table><thead><tr>
       <th style="width:56px;">图片</th><th>名称</th><th>分类</th><th class="text-right">单价</th><th class="text-center">库存</th><th>来源</th><th>尺寸</th><th>操作</th>
     </tr></thead><tbody id="product-table"></tbody></table></div>
+    </div>
+    <div id="product-grid-view" style="display:none;"></div>
   </div>
 </div>
 
@@ -508,11 +522,27 @@ async function loadDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  货物清单
+//  库存清单
 // ═══════════════════════════════════════════════════════════════
 let productsCache = [];
 let productFilter = '';
 let productSearch = '';
+let productViewMode = 'grid';
+
+function setProductView(mode) {
+  productViewMode = mode;
+  document.getElementById('pview-grid').classList.toggle('active', mode === 'grid');
+  document.getElementById('pview-list').classList.toggle('active', mode === 'list');
+  document.getElementById('product-container').className = 'product-' + mode;
+  if (mode === 'grid') {
+    document.getElementById('product-table-card').style.display = 'none';
+    document.getElementById('product-grid-view').style.display = '';
+  } else {
+    document.getElementById('product-table-card').style.display = '';
+    document.getElementById('product-grid-view').style.display = 'none';
+  }
+  renderProducts();
+}
 
 document.getElementById('product-filters').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
@@ -538,6 +568,14 @@ function renderProducts() {
   if (productFilter) list = list.filter(p => p.category === productFilter);
   if (productSearch) list = list.filter(p => p.name.includes(productSearch));
 
+  if (productViewMode === 'grid') {
+    renderProductsGrid(list);
+  } else {
+    renderProductsTable(list);
+  }
+}
+
+function renderProductsTable(list) {
   const tbody = document.getElementById('product-table');
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">暂无商品</div></td></tr>'; return; }
   tbody.innerHTML = list.map(p => `<tr>
@@ -557,6 +595,27 @@ function renderProducts() {
       </div>
     </td>
   </tr>`).join('');
+}
+
+function renderProductsGrid(list) {
+  const el = document.getElementById('product-grid-view');
+  if (list.length === 0) { el.innerHTML = '<div class="empty" style="grid-column:1/-1;">暂无商品</div>'; return; }
+  el.innerHTML = list.map(p => `
+    <div class="card bundle-grid-card product-grid-card" onclick="productDetail(${p.id})">
+      <div class="grid-cover">
+        ${p.image ? `<img src="/images/${esc(p.image)}">` : '<div class="grid-cover-placeholder">📦</div>'}
+        <span class="badge" style="position:absolute;top:8px;right:8px;background:var(--primary-light);color:var(--primary);">${p.category}</span>
+      </div>
+      <div class="grid-info">
+        <div class="grid-name">${esc(p.name)}</div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:13px;">
+          <strong>¥${p.unit_price.toFixed(2)}</strong>
+          <span style="color:var(--text-secondary);">库存: ${p.stock||0}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${p.source||''} ${p.box_length ? `· ${p.box_length}×${p.box_width||''}cm` : ''}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ── 商品详情弹窗 ──
