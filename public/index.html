@@ -253,6 +253,22 @@
   .image-upload-area:hover { border-color: var(--primary); }
   .image-upload-area input { display: none; }
   .image-upload-area .preview { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid var(--border); }
+
+  /* ─── 成品展示图 ─── */
+  .bundle-card .summary { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); padding: 8px 0 0 24px; }
+  .bundle-card .body { display: none; margin-top: 12px; }
+  .bundle-card.expanded .body { display: block; }
+  .bundle-card.expanded .expand-icon { transform: rotate(90deg); }
+  .expand-icon { cursor: pointer; transition: transform 0.2s; user-select: none; font-size: 12px; color: var(--text-secondary); }
+  .expand-icon:hover { color: var(--primary); }
+  .bundle-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .bundle-images img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s; }
+  .bundle-images img:hover { transform: scale(1.05); }
+  .bundle-gallery-item { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; position: relative; }
+  .bundle-gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+  .bundle-gallery-item .gallery-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border: none; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; cursor: pointer; line-height: 18px; text-align: center; padding: 0; }
+  .bundle-gallery-item.add-btn { display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f1f5f9; border: 2px dashed var(--border); font-size: 24px; color: var(--text-secondary); }
+  .bundle-gallery-item.add-btn:hover { border-color: var(--primary); color: var(--primary); }
 </style>
 </head>
 <body>
@@ -745,7 +761,7 @@ async function loadBundles() {
         </table></div>
         ${(b.images && b.images.length > 0) ? `
         <div class="bundle-images">
-          ${b.images.map(img => `<img src="${escAttr(img.image || img.url)}" onclick="window.open(this.src)" title="成品展示图">`).join('')}
+          ${b.images.map(img => `<img src="/images/bundles/${esc(img.image)}" onclick="window.open(this.src)" title="成品展示图">`).join('')}
         </div>` : ''}
       </div>
     </div>
@@ -760,7 +776,7 @@ async function deleteBundle(id) {
 }
 
 // ── 方案编辑 Modal ──
-let bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [] };
+let bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [], existingImages: [], newImages: [] };
 
 async function openBundleEditor(id) {
   const res = await apiGet(`/bundles/${id}`);
@@ -771,13 +787,67 @@ async function openBundleEditor(id) {
     name: b.name,
     marginRate: b.margin_rate,
     items: (b.items || []).map(i => ({ ...i })),
+    existingImages: (b.images || []).map(img => ({ ...img })),
+    newImages: [],
   };
   renderBundleEditor();
 }
 
 function openBundleModal() {
-  bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [] };
+  bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [], existingImages: [], newImages: [] };
   renderBundleEditor();
+}
+
+function buildBundleImageGallery(state) {
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+  // Existing images
+  for (const img of state.existingImages) {
+    const src = '/images/bundles/' + img.image;
+    html += `<div class="bundle-gallery-item">
+      <img src="${src}" onerror="this.parentElement.style.display='none'">
+      <button class="gallery-del" onclick="deleteBundleImage(${state.bundleId},${img.id},this)">✕</button>
+    </div>`;
+  }
+  // New pending images
+  for (let i = 0; i < state.newImages.length; i++) {
+    html += `<div class="bundle-gallery-item">
+      <img src="${state.newImages[i]}">
+      <button class="gallery-del" onclick="removeNewBundleImage(${i})">✕</button>
+    </div>`;
+  }
+  html += `<div class="bundle-gallery-item add-btn" onclick="document.getElementById('bundle-img-input').click()">
+    <span>＋</span>
+    <input type="file" id="bundle-img-input" accept="image/*" multiple style="display:none" onchange="handleBundleImageSelect(this)">
+  </div>`;
+  html += '</div>';
+  return html;
+}
+
+function handleBundleImageSelect(input) {
+  for (const file of input.files) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      bundleEditorState.newImages.push(e.target.result);
+      document.getElementById('be-images').innerHTML = buildBundleImageGallery(bundleEditorState);
+    };
+    reader.readAsDataURL(file);
+  }
+  input.value = '';
+}
+
+function removeNewBundleImage(idx) {
+  bundleEditorState.newImages.splice(idx, 1);
+  document.getElementById('be-images').innerHTML = buildBundleImageGallery(bundleEditorState);
+}
+
+async function deleteBundleImage(bundleId, imageId, btnEl) {
+  if (!confirm('确定删除此图片？')) return;
+  const res = await apiDelete(`/bundles/${bundleId}/images/${imageId}`);
+  if (res.ok) {
+    btnEl.closest('.bundle-gallery-item').remove();
+    bundleEditorState.existingImages = bundleEditorState.existingImages.filter(i => i.id !== imageId);
+    toast('已删除');
+  } else toast(res.error||'删除失败','error');
 }
 
 async function renderBundleEditor() {
@@ -808,7 +878,9 @@ async function renderBundleEditor() {
         <span style="font-weight:600;color:var(--primary);">¥${(i.quantity * i.unit_price).toFixed(2)}</span>
         <button class="btn-icon" onclick="removeFromBundle(${idx})">✕</button>
       </div>`).join('')}</div>
-    <div id="be-summary" style="margin-top:8px;padding:12px;background:var(--primary-light);border-radius:var(--radius-sm);">
+    <div style="margin-top:12px;font-weight:600;">📸 成品展示图</div>
+    <div id="be-images">${buildBundleImageGallery(s)}</div>
+    <div id="be-summary" style="margin-top:12px;padding:12px;background:var(--primary-light);border-radius:var(--radius-sm);">
       ${renderBundleSummary(s)}
     </div>`;
   document.getElementById('modal-footer').innerHTML = `
@@ -860,7 +932,16 @@ async function saveBundle() {
     items: s.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
   };
   const res = s.bundleId ? await apiPut(`/bundles/${s.bundleId}`, body) : await apiPost('/bundles', body);
-  if (res.ok) { toast(s.bundleId ? '保存成功' : '创建成功'); closeModal(); loadBundles(); }
+  if (res.ok) {
+    const bundleId = res.data.id || s.bundleId;
+    // 上传新图片
+    if (s.newImages.length > 0) {
+      await apiPost(`/bundles/${bundleId}/images`, {
+        images: s.newImages.map((img, i) => ({ image: img, sort_order: i }))
+      });
+    }
+    toast(s.bundleId ? '保存成功' : '创建成功'); closeModal(); loadBundles();
+  }
   else toast(res.error || '操作失败', 'error');
 }
 
