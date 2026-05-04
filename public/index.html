@@ -355,7 +355,7 @@
       <th style="width:56px;">图片</th><th>名称</th><th>分类</th><th class="text-right">单价</th><th class="text-center">库存</th><th>来源</th><th>尺寸</th><th>操作</th>
     </tr></thead><tbody id="product-table"></tbody></table></div>
     </div>
-    <div id="product-grid-view" style="display:none;"></div>
+    <div id="product-grid-view"></div>
   </div>
 </div>
 
@@ -533,13 +533,6 @@ function setProductView(mode) {
   document.getElementById('pview-grid').classList.toggle('active', mode === 'grid');
   document.getElementById('pview-list').classList.toggle('active', mode === 'list');
   document.getElementById('product-container').className = 'product-' + mode;
-  if (mode === 'grid') {
-    document.getElementById('product-table-card').style.display = 'none';
-    document.getElementById('product-grid-view').style.display = '';
-  } else {
-    document.getElementById('product-table-card').style.display = '';
-    document.getElementById('product-grid-view').style.display = 'none';
-  }
   renderProducts();
 }
 
