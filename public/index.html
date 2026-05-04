@@ -269,6 +269,24 @@
   .bundle-gallery-item .gallery-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border: none; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; cursor: pointer; line-height: 18px; text-align: center; padding: 0; }
   .bundle-gallery-item.add-btn { display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f1f5f9; border: 2px dashed var(--border); font-size: 24px; color: var(--text-secondary); }
   .bundle-gallery-item.add-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ─── 成品方案卡新布局 ─── */
+  .bundle-card { display: flex; gap: 0; padding: 16px 20px; position: relative; max-width: 100%; }
+  .bundle-card.grid { max-width: 100%; }
+  .bundle-card.row .bundle-right { max-width: 200px; }
+  .bundle-card.row .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+  .bundle-card .bundle-left { flex: 1; min-width: 0; }
+  .bundle-card .bundle-right { width: 240px; flex-shrink: 0; margin-left: 16px; border-left: 1px solid var(--border); padding-left: 16px; }
+  .bundle-card .bundle-right.no-images { display: flex; align-items: center; justify-content: center; }
+  .bundle-card .bundle-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .gallery-block { aspect-ratio: 1; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; background: #f8fafc; }
+  .gallery-block img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }
+  .gallery-block img:hover { transform: scale(1.1); }
+  .gallery-placeholder { color: var(--text-secondary); font-size: 14px; text-align: center; line-height: 1.6; }
+  .view-toggle .btn-icon { width: 26px; height: 26px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; line-height: 26px; text-align: center; padding: 0; }
+  .view-toggle .btn-icon.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  @media (max-width: 700px) { .bundle-card { flex-direction: column; } .bundle-card .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; } }
 </style>
 </head>
 <body>
@@ -718,54 +736,72 @@ async function deleteStockRecord(id) {
 // ═══════════════════════════════════════════════════════════════
 //  成品方案
 // ═══════════════════════════════════════════════════════════════
+// ── 成品方案展示 ──
+let bundleViewMode = 'grid'; // 'row' or 'grid'
+
 async function loadBundles() {
   const res = await apiGet('/bundles');
   if (!res.ok) return;
   const el = document.getElementById('bundle-list');
   if (res.data.length === 0) { el.innerHTML = '<div class="empty">暂无方案</div>'; return; }
 
-  el.innerHTML = res.data.map(b => `
-    <div class="card bundle-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;align-items:center;gap:8px;">
+  el.innerHTML = res.data.map(b => {
+    const hasImgs = b.images && b.images.length > 0;
+    return `
+    <div class="card bundle-card ${bundleViewMode}">
+      <div class="bundle-left">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span class="expand-icon" onclick="this.closest('.bundle-card').classList.toggle('expanded')">▶</span>
           <strong style="font-size:16px;">${esc(b.name)}</strong>
           <span class="badge badge-${b.status==='已发布'?'published':b.status==='草稿'?'draft':'off'}">${b.status||'草稿'}</span>
           ${b.box_type ? `<span style="color:var(--text-secondary);font-size:13px;">📦 ${esc(b.box_type)}</span>` : ''}
         </div>
-        <div class="btn-group">
-          <button class="btn btn-sm" onclick="openBundleEditor(${b.id})">✏️ 编辑</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">🗑️</button>
+        <div class="summary">
+          <span>成本: <strong>¥${b.total_cost?.toFixed(2)}</strong></span>
+          <span>售价: <strong style="color:var(--primary);">¥${b.sell_price?.toFixed(2)}</strong></span>
+          <span>利润率: <strong>${b.margin_rate}%</strong></span>
+          <span>利润: <strong style="color:var(--success);">¥${b.margin_amount?.toFixed(2)}</strong></span>
+        </div>
+        <div class="body">
+          <div class="table-wrap"><table>
+            <tr><th style="width:40px;"></th><th>商品</th><th>分类</th><th class="text-right">单价</th><th class="text-center">数量</th><th class="text-right">小计</th></tr>
+            ${(b.items||[]).map(i => `<tr>
+              <td>${i.image ? `<img src="/images/${esc(i.image)}" class="thumb-img">` : `<div class="thumb-placeholder" style="width:36px;height:36px;font-size:9px;">📷</div>`}</td>
+              <td>${esc(i.product_name)}</td><td>${i.category||'-'}</td>
+              <td class="text-right money">¥${i.unit_price?.toFixed(2)}</td>
+              <td class="text-center">${i.quantity}</td>
+              <td class="text-right money">¥${(i.quantity * i.unit_price).toFixed(2)}</td>
+            </tr>`).join('')}
+            <tr style="font-weight:700;background:var(--primary-light);">
+              <td colspan="5" class="text-right">成本 / 售价</td>
+              <td class="text-right money">¥${b.total_cost?.toFixed(2)} / ¥${b.sell_price?.toFixed(2)}</td>
+            </tr>
+          </table></div>
         </div>
       </div>
-      <div class="summary">
-        <span>成本: <strong>¥${b.total_cost?.toFixed(2)}</strong></span>
-        <span>售价: <strong style="color:var(--primary);">¥${b.sell_price?.toFixed(2)}</strong></span>
-        <span>利润率: <strong>${b.margin_rate}%</strong></span>
-        <span>利润: <strong style="color:var(--success);">¥${b.margin_amount?.toFixed(2)}</strong></span>
+      ${hasImgs ? `<div class="bundle-right">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-weight:600;font-size:13px;">📸 成品展示 (${b.images.length})</span>
+          <div class="view-toggle">
+            <button class="btn-icon ${bundleViewMode==='grid'?'active':''}" onclick="setBundleView('grid')" title="网格">⊞</button>
+            <button class="btn-icon ${bundleViewMode==='row'?'active':''}" onclick="setBundleView('row')" title="列表">☰</button>
+          </div>
+        </div>
+        <div class="gallery-grid">
+          ${b.images.map(img => `<div class="gallery-block"><img src="/images/bundles/${esc(img.image)}" onclick="window.open(this.src)"></div>`).join('')}
+        </div>
+      </div>` : `<div class="bundle-right no-images"><div class="gallery-placeholder">📸 暂无成品图<br><small>编辑可添加</small></div></div>`}
+      <div class="bundle-actions">
+        <button class="btn btn-sm" onclick="openBundleEditor(${b.id})">✏️ 编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">🗑️ 删除</button>
       </div>
-      <div class="body">
-        <div class="table-wrap"><table>
-          <tr><th style="width:40px;"></th><th>商品</th><th>分类</th><th class="text-right">单价</th><th class="text-center">数量</th><th class="text-right">小计</th></tr>
-          ${(b.items||[]).map(i => `<tr>
-            <td>${i.image ? `<img src="/images/${esc(i.image)}" class="thumb-img">` : `<div class="thumb-placeholder" style="width:36px;height:36px;font-size:9px;">📷</div>`}</td>
-            <td>${esc(i.product_name)}</td><td>${i.category||'-'}</td>
-            <td class="text-right money">¥${i.unit_price?.toFixed(2)}</td>
-            <td class="text-center">${i.quantity}</td>
-            <td class="text-right money">¥${(i.quantity * i.unit_price).toFixed(2)}</td>
-          </tr>`).join('')}
-          <tr style="font-weight:700;background:var(--primary-light);">
-            <td colspan="5" class="text-right">成本 / 售价</td>
-            <td class="text-right money">¥${b.total_cost?.toFixed(2)} / ¥${b.sell_price?.toFixed(2)}</td>
-          </tr>
-        </table></div>
-        ${(b.images && b.images.length > 0) ? `
-        <div class="bundle-images">
-          ${b.images.map(img => `<img src="/images/bundles/${esc(img.image)}" onclick="window.open(this.src)" title="成品展示图">`).join('')}
-        </div>` : ''}
-      </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+}
+
+function setBundleView(mode) {
+  bundleViewMode = mode;
+  loadBundles();
 }
 
 async function deleteBundle(id) {
@@ -864,9 +900,10 @@ async function renderBundleEditor() {
         <span class="value" id="be-margin-label">${s.marginRate}%</span>
       </div>
     </div>
-    <div style="margin-bottom:8px;font-weight:600;">商品池 — 点击 ＋ 添加</div>
-    <div style="max-height:180px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;">
-      ${allProducts.map(p => `<div class="bundle-product-item">
+    <div style="margin-bottom:6px;font-weight:600;">商品池</div>
+    <input id="be-search" placeholder="🔍 搜索商品..." oninput="filterBundleProducts()" style="margin-bottom:6px;">
+    <div id="be-product-pool" style="max-height:180px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;">
+      ${allProducts.map(p => `<div class="bundle-product-item" data-name="${esc(p.name)}">
         <span class="info">${esc(p.name)} <span class="price">¥${p.unit_price.toFixed(2)}</span></span>
         <button class="btn btn-sm btn-success" onclick="addToBundle(${p.id}, '${esc(p.name)}', ${p.unit_price})">＋</button>
       </div>`).join('')}
@@ -906,6 +943,15 @@ function updateBundleMargin(val) {
   document.getElementById('be-margin-label').textContent = val + '%';
   const s = bundleEditorState;
   document.getElementById('be-summary').innerHTML = renderBundleSummary(s);
+}
+
+// ── 商品池搜索 ──
+function filterBundleProducts() {
+  const q = (document.getElementById('be-search').value || '').toLowerCase();
+  document.querySelectorAll('#be-product-pool .bundle-product-item').forEach(el => {
+    const name = (el.dataset.name || '').toLowerCase();
+    el.style.display = q ? (name.includes(q) ? '' : 'none') : '';
+  });
 }
 
 function addToBundle(id, name, price) {
