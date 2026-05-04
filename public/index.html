@@ -272,11 +272,8 @@
 
   /* ─── 成品方案卡新布局 ─── */
   .bundle-card { display: flex; gap: 0; padding: 16px 20px; position: relative; max-width: 100%; }
-  .bundle-card.grid { max-width: 100%; }
-  .bundle-card.row .bundle-right { max-width: 200px; }
-  .bundle-card.row .gallery-grid { grid-template-columns: repeat(2, 1fr); }
   .bundle-card .bundle-left { flex: 1; min-width: 0; }
-  .bundle-card .bundle-right { width: 240px; flex-shrink: 0; margin-left: 16px; border-left: 1px solid var(--border); padding-left: 16px; }
+  .bundle-card .bundle-right { width: 280px; flex-shrink: 0; margin-left: 16px; border-left: 1px solid var(--border); padding-left: 16px; }
   .bundle-card .bundle-right.no-images { display: flex; align-items: center; justify-content: center; }
   .bundle-card .bundle-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; }
   .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -284,7 +281,15 @@
   .gallery-block img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }
   .gallery-block img:hover { transform: scale(1.1); }
   .gallery-placeholder { color: var(--text-secondary); font-size: 14px; text-align: center; line-height: 1.6; }
-  .view-toggle .btn-icon { width: 26px; height: 26px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; line-height: 26px; text-align: center; padding: 0; }
+  /* 网格模式 (⊞) */
+  .bundle-card.grid .bundle-right { width: 280px; }
+  .bundle-card.grid .gallery-grid { grid-template-columns: repeat(3, 1fr); }
+  /* 行模式 (☰) — 横向排列 */
+  .bundle-card.row .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+  .bundle-card.row { flex-direction: column; }
+  .bundle-card.row .gallery-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bundle-card.row .gallery-block { width: 100px; height: 100px; aspect-ratio: auto; border-radius: 4px; }
+  .view-toggle .btn-icon { width: 28px; height: 28px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
   .view-toggle .btn-icon.active { background: var(--primary); color: #fff; border-color: var(--primary); }
   @media (max-width: 700px) { .bundle-card { flex-direction: column; } .bundle-card .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; } }
 </style>
