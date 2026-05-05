@@ -50,6 +50,7 @@ function renderProducts() {
       '<button class="btn btn-sm" onclick="setProductView(\'grid\')" style="' + (productViewMode==='grid'?'background:var(--gradient);color:white;border:none;':'') + '">⊞</button>' +
       '<button class="btn btn-sm" onclick="setProductView(\'list\')" style="' + (productViewMode==='list'?'background:var(--gradient);color:white;border:none;':'') + '">☰</button>' +
       '<button class="btn btn-gradient btn-sm" onclick="openProductModal()">＋ 新增</button>' +
+      '<button class="btn btn-sm" style="background:var(--gradient-warm);color:white;border:none" onclick="openAIImport()">🤖 AI导入</button>' +
     '</div>' +
     '<div id="product-render-area"></div>';
 
@@ -324,4 +325,103 @@ async function deleteProduct(id) {
   var res = await apiDelete('/products/' + id);
   if (res.ok) { toast('已删除'); loadProducts(); }
   else toast(res.error || '删除失败', 'error');
+}
+
+// ─── AI 智能导入 ───
+let aiImageData = null;
+
+function openAIImport() {
+  aiImageData = null;
+  document.getElementById('modal-title').textContent = '🤖 AI 智能导入';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="text-align:center;padding:10px 0 20px;color:var(--text-secondary);font-size:13px">拍照/截图 或 粘贴链接，AI 自动识别商品信息</div>' +
+    // ── 图片上传 ──
+    '<div style="border:2px dashed var(--orange);border-radius:12px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="this.querySelector(\'input\').click()">' +
+      '<input type="file" accept="image/*" capture="environment" onchange="handleAIImageSelect(this)" style="display:none">' +
+      '<div id="ai-img-preview">📸 点击拍照或选择截图</div>' +
+    '</div>' +
+    // ── 链接输入 ──
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
+      '<span style="color:var(--text-secondary);white-space:nowrap">🔗 或贴链接:</span>' +
+      '<input id="ai-url" placeholder="粘贴 1688/拼多多 商品链接" style="flex:1">' +
+    '</div>' +
+    '<div id="ai-result"></div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn" onclick="closeModal()">取消</button>' +
+    '<button class="btn btn-gradient" id="btn-ai-import" onclick="doAIImport()">🔍 开始识别</button>';
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function handleAIImageSelect(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    aiImageData = e.target.result;
+    document.getElementById('ai-img-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:200px;border-radius:8px"><br><small style="color:#10b981">已选择: ' + file.name + '</small>';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doAIImport() {
+  var url = document.getElementById('ai-url').value.trim();
+  if (!aiImageData && !url) { toast('请拍照/截图 或 输入商品链接', 'error'); return; }
+
+  var btn = document.getElementById('btn-ai-import');
+  btn.disabled = true; btn.textContent = '⏳ AI 识别中...';
+  document.getElementById('ai-result').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">⏳ 正在调用 AI 识别...</div>';
+
+  var body = {};
+  if (aiImageData) body.image = aiImageData;
+  else body.url = url;
+
+  var res = await apiPost('/ai-import', body);
+  if (res.ok) {
+    document.getElementById('ai-result').innerHTML = renderAIResult(res.data);
+  } else {
+    document.getElementById('ai-result').innerHTML = '<div style="color:#ef4444;padding:12px;background:#fef2f2;border-radius:8px">❌ ' + esc(res.error) + '</div>';
+  }
+  btn.disabled = false; btn.textContent = '🔍 开始识别';
+}
+
+var aiExtractedData = null;
+
+function renderAIResult(data) {
+  aiExtractedData = data;
+  return '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:16px;margin-top:12px">' +
+    '<div style="font-weight:600;color:#166534;margin-bottom:8px">✅ AI 识别结果</div>' +
+    '<div class="form-row" style="grid-template-columns:1fr 1fr">' +
+      '<div><span style="color:var(--text-secondary)">名称:</span> ' + esc(data.name || '') + '</div>' +
+      '<div><span style="color:var(--text-secondary)">分类:</span> ' + esc(data.category || '') + '</div>' +
+      '<div><span style="color:var(--text-secondary)">单价:</span> ¥' + (data.unit_price || 0).toFixed(2) + ' / ' + esc(data.unit || '个') + '</div>' +
+      '<div><span style="color:var(--text-secondary)">来源:</span> ' + esc(data.source || '') + '</div>' +
+    '</div>' +
+    (data.notes ? '<div style="margin-top:6px"><span style="color:var(--text-secondary)">备注:</span> ' + esc(data.notes) + '</div>' : '') +
+    '<div style="margin-top:12px;display:flex;gap:8px">' +
+      '<button class="btn btn-gradient btn-sm" onclick="fillFromAI()">📋 填入表单</button>' +
+      '<button class="btn btn-sm" onclick="aiImageData=null;openAIImport()">🔄 重新识别</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function fillFromAI() {
+  if (!aiExtractedData) return;
+  closeModal();
+  openProductModal();
+  // 延迟填入（等 DOM 渲染完成）
+  setTimeout(function() {
+    var d = aiExtractedData;
+    document.getElementById('pf-name').value = d.name || '';
+    document.getElementById('pf-category').value = ['盒子','辅料','糖果','单品'].indexOf(d.category) >= 0 ? d.category : '单品';
+    document.getElementById('pf-unitprice').value = d.unit_price || 0;
+    document.getElementById('pf-unit').value = d.unit || '个';
+    document.getElementById('pf-source').value = d.source || '';
+    document.getElementById('pf-link').value = document.getElementById('ai-url') ? document.getElementById('ai-url').value : '';
+    document.getElementById('pf-notes').value = d.notes || '';
+    if (d.box_length) document.getElementById('pf-len').value = d.box_length;
+    if (d.box_width) document.getElementById('pf-wid').value = d.box_width;
+    if (d.box_height) document.getElementById('pf-hei').value = d.box_height;
+    calcTotalFromUnit();
+    toast('AI 信息已填入，请核对后保存');
+  }, 300);
 }

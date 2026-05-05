@@ -1267,6 +1267,58 @@ app.post('/api/backup/restore', (req, res) => {
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 if (!fs.existsSync(BUNDLE_IMAGES_DIR)) fs.mkdirSync(BUNDLE_IMAGES_DIR, { recursive: true });
 
+// ─── AI 智能导入 API ──────────────────────────────────────────────
+let KIMI_API_KEY = '';
+let KIMI_BASE_URL = 'https://api.moonshot.cn/v1';
+let KIMI_MODEL = 'kimi-k2.5';
+try {
+  const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf-8');
+  for (const line of envContent.split('\n')) {
+    const m = line.match(/^(\w+)=(.*)$/);
+    if (m) {
+      if (m[1] === 'KIMI_API_KEY') KIMI_API_KEY = m[2].trim();
+      if (m[1] === 'KIMI_BASE_URL') KIMI_BASE_URL = m[2].trim();
+      if (m[1] === 'KIMI_MODEL') KIMI_MODEL = m[2].trim();
+    }
+  }
+} catch (e) {}
+
+app.post('/api/ai-import', async (req, res) => {
+  if (!KIMI_API_KEY || KIMI_API_KEY === 'sk-your-key-here') {
+    return res.status(400).json({ ok: false, error: '请先在 .env 中配置 KIMI_API_KEY' });
+  }
+  const { image, url } = req.body;
+  if (!image && !url) return res.status(400).json({ ok: false, error: '请提供图片或链接' });
+
+  const prompt = '你是一个电商商品信息提取助手。从以下内容提取商品信息，返回纯JSON（不要markdown代码块）：\n{"name":"商品名称","category":"盒子/辅料/糖果/单品","unit_price":数字,"unit":"个","source":"1688/拼多多/淘宝","notes":"备注","box_length":数字或null,"box_width":数字或null,"box_height":数字或null}\n分类：盒子=包装容器，辅料=装饰材料，糖果=食品零食，单品=独立礼品';
+
+  const messages = [{ role: 'system', content: prompt }];
+  if (image) {
+    let imgData = image;
+    if (!imgData.startsWith('data:')) imgData = 'data:image/jpeg;base64,' + imgData;
+    messages.push({ role: 'user', content: [{ type: 'image_url', image_url: { url: imgData } }, { type: 'text', text: '请从这张商品图片中提取信息' }] });
+  } else {
+    messages.push({ role: 'user', content: `请从以下链接提取信息：${url}` });
+  }
+
+  try {
+    const kimiRes = await fetch(`${KIMI_BASE_URL}/chat/completions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KIMI_API_KEY}` },
+      body: JSON.stringify({ model: KIMI_MODEL, messages, temperature: 0.3, max_tokens: 1000 }),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (!kimiRes.ok) { const t = await kimiRes.text(); return res.status(502).json({ ok: false, error: `Kimi API ${kimiRes.status}: ${t.slice(0,200)}` }); }
+    const kd = await kimiRes.json();
+    const content = kd.choices?.[0]?.message?.content || '';
+    let json = content.match(/\{[\s\S]*\}/)?.[0] || content;
+    const extracted = JSON.parse(json);
+    res.json({ ok: true, data: extracted });
+  } catch (err) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') return res.status(504).json({ ok: false, error: 'AI 响应超时' });
+    res.status(500).json({ ok: false, error: 'AI 解析失败: ' + err.message });
+  }
+});
+
 initDatabase();
 
 // 启动时自动备份
