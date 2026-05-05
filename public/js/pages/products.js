@@ -53,7 +53,7 @@ function renderProducts() {
     '</div>' +
     '<div id="product-render-area"></div>';
 
-  // 绑定事件
+  // 绑定筛选事件
   document.getElementById('product-filters').addEventListener('click', function(e) {
     var chip = e.target.closest('.chip');
     if (!chip) return;
@@ -67,58 +67,70 @@ function renderProducts() {
     renderProducts();
   });
 
-  if (productViewMode === 'grid') renderProductsGrid(list);
-  else renderProductsTable(list);
+  if (productViewMode === 'list') renderProductsTable(list);
+  else renderProductsGrid(list);
 }
 
+// ─── 列表模式（表格） ───
 function renderProductsTable(list) {
-  var thead = document.querySelector('#product-table-card thead');
-  if (thead) {
-    thead.addEventListener('click', function(e) {
-      var th = e.target.closest('th.sortable');
-      if (!th) return;
-      var field = th.dataset.sort;
-      if (productSortField === field) productSortDir = productSortDir === 'asc' ? 'desc' : 'asc';
-      else { productSortField = field; productSortDir = 'asc'; }
-      renderProducts();
-    });
+  var area = document.getElementById('product-render-area');
+  if (!list.length) { area.innerHTML = '<div class="card"><div class="empty">暂无商品</div></div>'; return; }
+
+  var ascArrow = ' <span class="sort-arrow"></span>';
+  function sortTh(field, label) {
+    var cls = (field === productSortField) ? (' sorted sorted-' + productSortDir) : '';
+    return '<th class="sortable' + cls + '" data-sort="' + field + '">' + label + '<span class="sort-arrow"></span></th>';
   }
 
-  // 更新表头指示器
-  document.querySelectorAll('th.sortable').forEach(function(th) {
-    th.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
-    if (th.dataset.sort === productSortField) {
-      th.classList.add('sorted', productSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-    }
-  });
+  area.innerHTML =
+    '<div class="card" style="padding:0"><div class="table-wrap"><table>' +
+      '<thead><tr>' +
+        '<th style="width:56px">图片</th>' +
+        sortTh('name', '名称') +
+        sortTh('category', '分类') +
+        '<th class="sortable text-right' + (productSortField==='unit_price'?' sorted sorted-'+productSortDir:'') + '" data-sort="unit_price">单价<span class="sort-arrow"></span></th>' +
+        '<th class="sortable text-center' + (productSortField==='stock'?' sorted sorted-'+productSortDir:'') + '" data-sort="stock">库存<span class="sort-arrow"></span></th>' +
+        sortTh('source', '来源') +
+        '<th class="sortable' + (productSortField==='box_length'?' sorted sorted-'+productSortDir:'') + '" data-sort="box_length">尺寸<span class="sort-arrow"></span></th>' +
+        '<th style="width:100px">操作</th>' +
+      '</tr></thead>' +
+      '<tbody>' + list.map(function(p) {
+        return '<tr>' +
+          '<td>' + (p.image
+            ? '<img src="/images/' + esc(p.image) + '" class="thumb-img" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';"><div class="thumb-placeholder" style="display:none">📷</div>'
+            : '<div class="thumb-placeholder">📷</div>') + '</td>' +
+          '<td><a style="color:var(--orange);cursor:pointer;font-weight:600" onclick="productDetail(' + p.id + ')">' + esc(p.name) + '</a></td>' +
+          '<td><span class="badge badge-primary">' + p.category + '</span></td>' +
+          '<td class="text-right money">¥' + (p.unit_price || 0).toFixed(2) + '</td>' +
+          '<td class="text-center">' + (p.stock || 0) + '</td>' +
+          '<td>' + (p.source || '-') + '</td>' +
+          '<td>' + (p.box_length ? p.box_length + '×' + (p.box_width||'-') + '×' + (p.box_height||'-') : '-') + '</td>' +
+          '<td><div class="btn-group">' +
+            '<button class="btn-icon" onclick="productDetail(' + p.id + ')" title="详情">📋</button>' +
+            '<button class="btn-icon" onclick="openProductModal(' + p.id + ')" title="编辑">✏️</button>' +
+            '<button class="btn-icon" onclick="deleteProduct(' + p.id + ')" title="删除">🗑️</button>' +
+          '</div></td></tr>';
+      }).join('') + '</tbody>' +
+    '</table></div></div>';
 
-  var tbody = document.querySelector('#product-table tbody');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">暂无商品</div></td></tr>'; return; }
-  tbody.innerHTML = list.map(function(p) {
-    return '<tr>' +
-      '<td>' + (p.image
-        ? '<img src="/images/' + esc(p.image) + '" class="thumb-img" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';"><div class="thumb-placeholder" style="display:none">📷</div>'
-        : '<div class="thumb-placeholder">📷</div>') + '</td>' +
-      '<td><a class="link-name" style="color:var(--orange);cursor:pointer;font-weight:600" onclick="productDetail(' + p.id + ')">' + esc(p.name) + '</a></td>' +
-      '<td><span class="badge badge-primary">' + p.category + '</span></td>' +
-      '<td class="text-right money">¥' + (p.unit_price || 0).toFixed(2) + '</td>' +
-      '<td class="text-center">' + (p.stock || 0) + '</td>' +
-      '<td>' + (p.source || '-') + '</td>' +
-      '<td>' + (p.box_length ? p.box_length + '×' + (p.box_width||'-') + '×' + (p.box_height||'-') : '-') + '</td>' +
-      '<td><div class="btn-group">' +
-        '<button class="btn-icon" onclick="productDetail(' + p.id + ')" title="详情">📋</button>' +
-        '<button class="btn-icon" onclick="openProductModal(' + p.id + ')" title="编辑">✏️</button>' +
-        '<button class="btn-icon" onclick="deleteProduct(' + p.id + ')" title="删除">🗑️</button>' +
-      '</div></td></tr>';
-  }).join('');
+  // 表头排序事件
+  area.querySelector('thead').addEventListener('click', function(e) {
+    var th = e.target.closest('th.sortable');
+    if (!th) return;
+    var field = th.dataset.sort;
+    if (productSortField === field) productSortDir = productSortDir === 'asc' ? 'desc' : 'asc';
+    else { productSortField = field; productSortDir = 'asc'; }
+    renderProducts();
+  });
 }
 
+// ─── 网格模式 ───
 function renderProductsGrid(list) {
   var el = document.getElementById('product-render-area');
   if (!list.length) { el.innerHTML = '<div class="empty">暂无商品</div>'; return; }
   el.innerHTML = '<div class="card-grid">' + list.map(function(p) {
     return '<div class="card stat-card" style="cursor:pointer;text-align:left;padding:0;overflow:hidden" onclick="productDetail(' + p.id + ')">' +
-      '<div style="aspect-ratio:1;background:#fef7f2;display:flex;align-items:center;justify-content:center;overflow:hidden">' +
+      '<div style="aspect-ratio:1;background:#fef7f2;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">' +
         (p.image ? '<img src="/images/' + esc(p.image) + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : '<div style="font-size:48px;opacity:0.3">📦</div>') +
         '<span class="badge badge-primary" style="position:absolute;top:8px;right:8px">' + p.category + '</span>' +
       '</div>' +
@@ -153,7 +165,7 @@ function productDetail(id) {
           '<div><span style="color:var(--text-secondary)">尺寸:</span> ' + (product.box_length ? product.box_length + '×' + (product.box_width||'-') + '×' + (product.box_height||'-') + ' cm' : '-') + '</div>' +
           '<div><span style="color:var(--text-secondary)">库存:</span> ' + (product.stock || 0) + '</div>' +
         '</div>' +
-        (product.link ? '<div style="margin-top:8px"><span style="color:var(--text-secondary)">购买链接:</span> <a href="' + escAttr(product.link) + '" target="_blank" style="color:var(--orange);word-break:break-all">' + esc(product.link) + '</a></div>' : '') +
+        (product.link ? '<div style="margin-top:8px"><span style="color:var(--text-secondary)">链接:</span> <a href="' + escAttr(product.link) + '" target="_blank" style="color:var(--orange);word-break:break-all">' + esc(product.link) + '</a></div>' : '') +
         (product.notes ? '<div style="margin-top:8px"><span style="color:var(--text-secondary)">备注:</span> ' + esc(product.notes) + '</div>' : '') +
       '</div></div>';
   document.getElementById('modal-footer').innerHTML =
@@ -162,18 +174,21 @@ function productDetail(id) {
   document.getElementById('modal-overlay').classList.add('active');
 }
 
-// ── 商品编辑 Modal ──
+// ── 商品编辑 Modal（支持总价/单价双模式） ──
 let pendingImage = null;
+let priceMode = 'unit'; // 'unit' | 'total'
 
 function openProductModal(id) {
   var isEdit = !!id;
   var product = isEdit ? productsCache.find(function(p) { return p.id === id; }) : null;
   pendingImage = null;
+  priceMode = 'unit';
+
   document.getElementById('modal-title').textContent = isEdit ? '✏️ 编辑商品' : '＋ 新增商品';
   document.getElementById('modal-body').innerHTML =
     '<div class="form-group"><label>名称 *</label><input id="pf-name" value="' + escAttr(product ? product.name : '') + '"></div>' +
     '<div class="form-group"><label>商品图片</label>' +
-      '<div class="image-upload-area" onclick="this.querySelector(\'input\').click()" style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer">' +
+      '<div style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onclick="this.querySelector(\'input\').click()">' +
         '<input type="file" accept="image/*" onchange="handleImageSelect(this)" style="display:none">' +
         '<div id="pf-img-preview">' + (product && product.image ? '<img src="/images/' + esc(product.image) + '" style="max-width:160px;max-height:160px;border-radius:8px"><br><small style="color:var(--text-secondary)">点击更换</small>' : '📷 点击上传图片') + '</div>' +
       '</div></div>' +
@@ -181,13 +196,35 @@ function openProductModal(id) {
       '<div class="form-group"><label>分类 *</label><select id="pf-category">' + ['盒子','辅料','糖果','单品'].map(function(c) { return '<option' + (product && product.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
       '<div class="form-group"><label>子分类</label><input id="pf-sub" value="' + escAttr(product ? product.subcategory || '' : '') + '"></div>' +
     '</div>' +
-    '<div class="form-row">' +
-      '<div class="form-group"><label>单价</label><input type="number" step="0.01" id="pf-price" value="' + (product ? product.unit_price || 0 : 0) + '"></div>' +
-      '<div class="form-group"><label>库存</label><input type="number" id="pf-stock" value="' + (product ? product.stock || 0 : 0) + '"></div>' +
+    // ─── 价格模式切换 ───
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
+      '<span style="font-size:13px;color:var(--text-secondary)">计价方式:</span>' +
+      '<button class="btn btn-sm" id="pm-unit" style="' + (priceMode==='unit'?'background:var(--gradient);color:white;border:none':'') + '" onclick="switchPriceMode(\'unit\')">按单价</button>' +
+      '<button class="btn btn-sm" id="pm-total" style="' + (priceMode==='total'?'background:var(--gradient);color:white;border:none':'') + '" onclick="switchPriceMode(\'total\')">按总价</button>' +
+    '</div>' +
+    // 单价模式
+    '<div id="price-unit-block" style="display:' + (priceMode==='unit'?'block':'none') + '">' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>单价 (¥)</label><input type="number" step="0.01" id="pf-unitprice" value="' + (product ? product.unit_price || 0 : 0) + '" oninput="calcTotalFromUnit()"></div>' +
+        '<div class="form-group"><label>数量</label><input type="number" id="pf-qty-unit" value="1" min="1" oninput="calcTotalFromUnit()"></div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">总价: <strong id="pf-total-display">¥0.00</strong></div>' +
+    '</div>' +
+    // 总价模式
+    '<div id="price-total-block" style="display:' + (priceMode==='total'?'block':'none') + '">' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>总价 (¥)</label><input type="number" step="0.01" id="pf-total" value="0" oninput="calcUnitFromTotal()"></div>' +
+        '<div class="form-group"><label>数量</label><input type="number" id="pf-qty-total" value="1" min="1" oninput="calcUnitFromTotal()"></div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">单价: <strong id="pf-unit-display">¥0.00</strong> / 个</div>' +
     '</div>' +
     '<div class="form-row">' +
+      '<div class="form-group"><label>库存</label><input type="number" id="pf-stock" value="' + (product ? product.stock || 0 : 0) + '"></div>' +
       '<div class="form-group"><label>单位</label><input id="pf-unit" value="' + escAttr(product ? product.unit || '个' : '个') + '"></div>' +
+    '</div>' +
+    '<div class="form-row">' +
       '<div class="form-group"><label>来源</label><input id="pf-source" value="' + escAttr(product ? product.source || '' : '') + '"></div>' +
+      '<div class="form-group"><label>最低库存预警</label><input type="number" id="pf-minstock" value="' + (product ? product.min_stock || 5 : 5) + '"></div>' +
     '</div>' +
     '<div class="form-group"><label>链接</label><input id="pf-link" value="' + escAttr(product ? product.link || '' : '') + '"></div>' +
     '<div class="form-row-3">' +
@@ -195,12 +232,43 @@ function openProductModal(id) {
       '<div class="form-group"><label>宽(cm)</label><input type="number" step="0.1" id="pf-wid" value="' + (product ? product.box_width || '' : '') + '"></div>' +
       '<div class="form-group"><label>高(cm)</label><input type="number" step="0.1" id="pf-hei" value="' + (product ? product.box_height || '' : '') + '"></div>' +
     '</div>' +
-    '<div class="form-group"><label>最低库存预警</label><input type="number" id="pf-minstock" value="' + (product ? product.min_stock || 5 : 5) + '"></div>' +
     '<div class="form-group"><label>备注</label><textarea id="pf-notes">' + escAttr(product ? product.notes || '' : '') + '</textarea></div>';
+
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn" onclick="closeModal()">取消</button>' +
     '<button class="btn btn-gradient" onclick="saveProduct(' + (id || '') + ')">' + (isEdit ? '保存修改' : '创建') + '</button>';
   document.getElementById('modal-overlay').classList.add('active');
+
+  // 初始计算
+  if (priceMode === 'unit') calcTotalFromUnit();
+  else calcUnitFromTotal();
+}
+
+function switchPriceMode(mode) {
+  priceMode = mode;
+  document.getElementById('pm-unit').style.background = mode === 'unit' ? 'var(--gradient)' : '';
+  document.getElementById('pm-unit').style.color = mode === 'unit' ? 'white' : '';
+  document.getElementById('pm-unit').style.border = mode === 'unit' ? 'none' : '';
+  document.getElementById('pm-total').style.background = mode === 'total' ? 'var(--gradient)' : '';
+  document.getElementById('pm-total').style.color = mode === 'total' ? 'white' : '';
+  document.getElementById('pm-total').style.border = mode === 'total' ? 'none' : '';
+  document.getElementById('price-unit-block').style.display = mode === 'unit' ? 'block' : 'none';
+  document.getElementById('price-total-block').style.display = mode === 'total' ? 'block' : 'none';
+  if (mode === 'unit') calcTotalFromUnit();
+  else calcUnitFromTotal();
+}
+
+function calcTotalFromUnit() {
+  var up = parseFloat(document.getElementById('pf-unitprice').value) || 0;
+  var qty = parseInt(document.getElementById('pf-qty-unit').value) || 1;
+  document.getElementById('pf-total-display').textContent = '¥' + (up * qty).toFixed(2);
+}
+
+function calcUnitFromTotal() {
+  var total = parseFloat(document.getElementById('pf-total').value) || 0;
+  var qty = parseInt(document.getElementById('pf-qty-total').value) || 1;
+  var up = qty > 0 ? total / qty : 0;
+  document.getElementById('pf-unit-display').textContent = '¥' + up.toFixed(2) + ' / 个';
 }
 
 function handleImageSelect(input) {
@@ -215,11 +283,20 @@ function handleImageSelect(input) {
 }
 
 async function saveProduct(id) {
+  var unit_price;
+  if (priceMode === 'total') {
+    var total = parseFloat(document.getElementById('pf-total').value) || 0;
+    var qty = parseInt(document.getElementById('pf-qty-total').value) || 1;
+    unit_price = total / qty;
+  } else {
+    unit_price = parseFloat(document.getElementById('pf-unitprice').value) || 0;
+  }
+
   var body = {
     name: document.getElementById('pf-name').value,
     category: document.getElementById('pf-category').value,
     subcategory: document.getElementById('pf-sub').value,
-    unit_price: parseFloat(document.getElementById('pf-price').value) || 0,
+    unit_price: unit_price,
     stock: parseInt(document.getElementById('pf-stock').value) || 0,
     unit: document.getElementById('pf-unit').value || '个',
     source: document.getElementById('pf-source').value,
