@@ -435,7 +435,7 @@ app.put('/api/products/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
   if (!existing) return res.status(404).json({ ok: false, error: '商品不存在' });
 
-  const fields = ['name','category','subcategory','unit_price','unit','source','link','box_length','box_width','box_height','notes'];
+  const fields = ['name','category','subcategory','unit_price','unit','source','link','box_length','box_width','box_height','notes','min_stock','tags','status'];
   const updates = [];
   const params = [];
   for (const f of fields) {
@@ -820,6 +820,7 @@ app.get('/api/dashboard', (req, res) => {
   const totalCompetitors = db.prepare('SELECT COUNT(*) as c FROM competitors').get().c;
   const totalPurchaseCost = db.prepare('SELECT COALESCE(SUM(unit_price * stock), 0) as total FROM products').get().total;
   const pendingChecklist = db.prepare('SELECT COUNT(*) as c FROM ops_checklist WHERE done = 0').get().c;
+  const lowStock = db.prepare("SELECT COUNT(*) as c FROM products WHERE stock > 0 AND stock <= COALESCE(min_stock,5) AND (status IS NULL OR status = 'active')").get().c;
 
   const recentBundles = db.prepare('SELECT * FROM bundles ORDER BY updated_at DESC LIMIT 5').all();
 
@@ -832,6 +833,7 @@ app.get('/api/dashboard', (req, res) => {
       total_competitors: totalCompetitors,
       total_purchase_cost: totalPurchaseCost,
       pending_checklist: pendingChecklist,
+      low_stock: lowStock,
       recent_bundles: recentBundles,
     }
   });
@@ -990,6 +992,49 @@ app.delete('/api/bundles/:id/images/:imageId', (req, res) => {
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
   db.prepare('DELETE FROM bundle_images WHERE id = ?').run(imageId);
+  res.json({ ok: true });
+});
+
+// ─── 供应商报价 API ──────────────────────────────────────────
+
+// GET /api/quotes?product_id=1
+app.get('/api/quotes', (req, res) => {
+  const { product_id } = req.query;
+  let sql = 'SELECT * FROM supplier_quotes';
+  let params = [];
+  if (product_id) { sql += ' WHERE product_id = ?'; params.push(product_id); }
+  sql += ' ORDER BY is_preferred DESC, unit_price ASC';
+  const quotes = db.prepare(sql).all(...params);
+  res.json({ ok: true, data: quotes });
+});
+
+// POST /api/quotes
+app.post('/api/quotes', (req, res) => {
+  const { product_id, platform, supplier_name, unit_price, min_order, shipping, link, notes } = req.body;
+  if (!product_id || !platform) return res.status(400).json({ ok: false, error: 'product_id 和 platform 必填' });
+  const result = db.prepare(`INSERT INTO supplier_quotes (product_id, platform, supplier_name, unit_price, min_order, shipping, link, notes)
+    VALUES (?,?,?,?,?,?,?,?)`).run(product_id, platform, supplier_name||null, unit_price||null, min_order||null, shipping||0, link||null, notes||null);
+  res.status(201).json({ ok: true, data: { id: result.lastInsertRowid } });
+});
+
+// PUT /api/quotes/:id
+app.put('/api/quotes/:id', (req, res) => {
+  const fields = ['platform','supplier_name','unit_price','min_order','shipping','link','is_preferred','notes'];
+  const sets = [];
+  const params = [];
+  for (const f of fields) {
+    if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
+  }
+  if (sets.length === 0) return res.json({ ok: true });
+  sets.push("updated_at = datetime('now','localtime')");
+  params.push(req.params.id);
+  db.prepare(`UPDATE supplier_quotes SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  res.json({ ok: true });
+});
+
+// DELETE /api/quotes/:id
+app.delete('/api/quotes/:id', (req, res) => {
+  db.prepare('DELETE FROM supplier_quotes WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
