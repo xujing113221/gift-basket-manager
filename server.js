@@ -390,7 +390,7 @@ function seedIfEmpty() {
 
 // GET /api/products
 app.get('/api/products', (req, res) => {
-  const { category, search } = req.query;
+  const { category, search, low_stock } = req.query;
   let sql = 'SELECT * FROM products WHERE 1=1';
   const params = [];
   if (category) {
@@ -400,6 +400,9 @@ app.get('/api/products', (req, res) => {
   if (search) {
     sql += ' AND name LIKE ?';
     params.push(`%${search}%`);
+  }
+  if (low_stock === '1') {
+    sql += " AND stock > 0 AND stock <= COALESCE(min_stock, 5) AND (status IS NULL OR status = 'active')";
   }
   sql += ' ORDER BY category, name';
   const data = db.prepare(sql).all(...params);

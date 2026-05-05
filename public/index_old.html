@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎁 伴手礼管理后台</title>
+<style>
+  /* ─── 全局重置 ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #f8fafc; color: #1e293b; min-height: 100vh;
+  }
+
+  /* ─── 颜色变量 ─── */
+  :root {
+    --primary: #6366f1; --primary-light: #e0e7ff; --success: #10b981;
+    --warning: #f59e0b; --danger: #ef4444; --bg: #f8fafc;
+    --card: #ffffff; --text: #1e293b; --text-secondary: #64748b;
+    --border: #e2e8f0; --radius: 12px; --radius-sm: 8px;
+  }
+
+  /* ─── 头部 ─── */
+  .header {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 0 24px; display: flex; align-items: center; height: 56px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; color: var(--primary); }
+  .header h1 span { color: var(--text); font-weight: 400; font-size: 14px; margin-left: 8px; }
+
+  /* ─── Tab 导航 ─── */
+  .tabs {
+    display: flex; background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 0 24px; gap: 0; position: sticky; top: 56px; z-index: 99;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    padding: 0 16px; height: 44px; border: none; background: none;
+    font-size: 14px; color: var(--text-secondary); cursor: pointer;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text); background: #f1f5f9; }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+  /* ─── 页面容器 ─── */
+  .page { display: none; padding: 24px; max-width: 1280px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ─── 卡片 ─── */
+  .card {
+    background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+    padding: 20px; text-align: center;
+  }
+  .stat-card .number { font-size: 32px; font-weight: 700; color: var(--primary); }
+  .stat-card .label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .stat-card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+
+  /* ─── 表格 ─── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { font-weight: 600; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:hover { background: #f8fafc; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .money { font-variant-numeric: tabular-nums; }
+
+  /* ─── 可排序表头 ─── */
+  th.sortable {
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color 0.15s;
+  }
+  th.sortable:hover { color: var(--primary); }
+  th.sortable .sort-arrow {
+    display: inline-block; width: 12px; font-size: 10px; margin-left: 4px;
+    color: var(--border); vertical-align: middle; line-height: 1;
+  }
+  th.sortable.sorted .sort-arrow { color: var(--primary); }
+  th.sortable.sorted-asc .sort-arrow::after { content: '▲'; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '▼'; }
+  th.sortable:not(.sorted) .sort-arrow::after { content: '▲'; opacity: 0.3; }
+
+  /* ─── 按钮 ─── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    background: var(--card); color: var(--text); font-family: inherit;
+  }
+  .btn:hover { background: #f1f5f9; }
+  .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-success { background: var(--success); color: white; border-color: var(--success); }
+  .btn-success:hover { background: #059669; }
+  .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-icon { padding: 4px 8px; font-size: 14px; border: none; background: none; cursor: pointer; opacity: 0.6; }
+  .btn-icon:hover { opacity: 1; }
+  .btn-group { display: flex; gap: 6px; }
+
+  /* ─── 表单 ─── */
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: var(--card); color: var(--text);
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* ─── Modal ─── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 1000; align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card); border-radius: var(--radius); padding: 24px;
+    width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 16px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* ─── 搜索框 + 筛选栏 ─── */
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .toolbar .search-input { max-width: 260px; }
+  .toolbar .spacer { flex: 1; }
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 4px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card); color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .chip:hover { border-color: var(--primary); color: var(--primary); }
+  .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* ─── 方案搭建器 ─── */
+  .bundle-builder { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .bundle-builder { grid-template-columns: 1fr; } }
+  .bundle-product-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .bundle-product-item:hover { background: #f8fafc; }
+  .bundle-product-item .info { flex: 1; }
+  .bundle-product-item .price { color: var(--text-secondary); margin: 0 8px; }
+
+  /* ─── 竞品卡片 ─── */
+  .competitor-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px;
+    margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+  }
+  .competitor-card:hover { border-color: var(--primary); }
+  .competitor-card .header { display: flex; justify-content: space-between; align-items: center; }
+  .competitor-card .price-tag { font-size: 14px; font-weight: 600; }
+  .competitor-card .details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .competitor-card.open .details { display: block; }
+
+  /* ─── 方案卡片(可折叠) ─── */
+  .bundle-card .summary { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); align-items: center; }
+  .bundle-card .expand-icon { cursor: pointer; font-size: 18px; transition: transform 0.2s; user-select: none; }
+  .bundle-card.expanded .expand-icon { transform: rotate(90deg); }
+  .bundle-card .body { display: none; margin-top: 12px; }
+  .bundle-card.expanded .body { display: block; }
+  .bundle-images { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .bundle-images img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+  .bundle-images img:hover { border-color: var(--primary); }
+
+  /* ─── 运营看板 ─── */
+  .ops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .ops-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; border-top: 3px solid var(--primary);
+  }
+  .ops-card .ops-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .ops-card .ops-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+  .checklist-item .task-text { flex: 1; font-size: 14px; }
+  .checklist-item.done .task-text { text-decoration: line-through; color: var(--text-secondary); }
+  .checklist-item .platform-tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--primary-light); color: var(--primary);
+  }
+
+  /* ─── 空状态 ─── */
+  .empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 14px; }
+
+  /* ─── Toast ─── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+    padding: 12px 20px; border-radius: var(--radius-sm); font-size: 14px;
+    color: white; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+
+  /* ─── 计算器结果 ─── */
+  .calc-result {
+    background: var(--primary-light); border-radius: var(--radius-sm);
+    padding: 16px; margin-top: 12px;
+  }
+  .calc-result .line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+  .calc-result .total { font-weight: 700; font-size: 16px; color: var(--primary); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+
+  /* ─── 利润率滑块 ─── */
+  .margin-slider { display: flex; align-items: center; gap: 12px; }
+  .margin-slider input[type="range"] { flex: 1; }
+  .margin-slider .value { font-size: 18px; font-weight: 700; color: var(--primary); min-width: 50px; }
+
+  /* ─── Badge ─── */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;
+  }
+  .badge-published { background: #d1fae5; color: #065f46; }
+  .badge-draft { background: #fef3c7; color: #92400e; }
+  .badge-off { background: #fee2e2; color: #991b1b; }
+
+  /* ─── 图片缩略图 ─── */
+  .thumb-img {
+    width: 48px; height: 48px; object-fit: cover; border-radius: 6px;
+    border: 1px solid var(--border); background: #f1f5f9;
+  }
+  .thumb-placeholder {
+    width: 48px; height: 48px; border-radius: 6px; border: 1px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); font-size: 11px; background: #f8fafc;
+  }
+  .image-upload-area {
+    border: 2px dashed var(--border); border-radius: var(--radius-sm);
+    padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .image-upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
+  .image-upload-area .preview { max-width: 200px; max-height: 150px; border-radius: 6px; margin-top: 8px; }
+  .image-upload-area input[type="file"] { display: none; }
+  /* ─── 滚动条 ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+  /* ─── 链接与图片 ─── */
+  .link-name { color: var(--primary); cursor: pointer; text-decoration: none; font-weight: 600; }
+  .link-name:hover { text-decoration: underline; color: #4f46e5; }
+  .link-source { color: var(--success); text-decoration: none; font-weight: 500; }
+  .link-source:hover { text-decoration: underline; color: #059669; }
+  .thumb-img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); vertical-align: middle; }
+  .thumb-placeholder { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 6px; font-size: 18px; }
+  .image-upload-area { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+  .image-upload-area:hover { border-color: var(--primary); }
+  .image-upload-area input { display: none; }
+  .image-upload-area .preview { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid var(--border); }
+
+  /* ─── 成品展示图 ─── */
+  .bundle-card .summary { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); padding: 8px 0 0 24px; }
+  .bundle-card .body { display: none; margin-top: 12px; }
+  .bundle-card.expanded .body { display: block; }
+  .bundle-card.expanded .expand-icon { transform: rotate(90deg); }
+  .expand-icon { cursor: pointer; transition: transform 0.2s; user-select: none; font-size: 12px; color: var(--text-secondary); }
+  .expand-icon:hover { color: var(--primary); }
+  .bundle-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .bundle-images img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s; }
+  .bundle-images img:hover { transform: scale(1.05); }
+  .bundle-gallery-item { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; position: relative; }
+  .bundle-gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+  .bundle-gallery-item .gallery-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border: none; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; cursor: pointer; line-height: 18px; text-align: center; padding: 0; }
+  .bundle-gallery-item.add-btn { display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f1f5f9; border: 2px dashed var(--border); font-size: 24px; color: var(--text-secondary); }
+  .bundle-gallery-item.add-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ─── 成品方案卡新布局 ─── */
+  /* 容器 */
+  .bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .bundle-list { display: flex; flex-direction: column; gap: 16px; }
+  /* 网格卡片 */
+  .bundle-grid-card { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; padding: 0 !important; overflow: hidden; }
+  .bundle-grid-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .grid-cover { width: 100%; aspect-ratio: 1; overflow: hidden; position: relative; background: #f1f5f9; display: flex; align-items: center; justify-content: center; }
+  .grid-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .grid-cover-placeholder { font-size: 48px; opacity: 0.3; }
+  .grid-info { padding: 12px 14px 14px; }
+  .grid-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 列表卡片 */
+  .bundle-card { display: flex; gap: 0; padding: 16px 20px; position: relative; max-width: 100%; }
+  .bundle-card .bundle-left { flex: 1; min-width: 0; }
+  .bundle-card .bundle-right { width: 280px; flex-shrink: 0; margin-left: 16px; border-left: 1px solid var(--border); padding-left: 16px; }
+  .bundle-card .bundle-right.no-images { display: flex; align-items: center; justify-content: center; }
+  .bundle-card .bundle-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .gallery-block { aspect-ratio: 1; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; background: #f8fafc; }
+  .gallery-block img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }
+  .gallery-block img:hover { transform: scale(1.1); }
+  .gallery-placeholder { color: var(--text-secondary); font-size: 14px; text-align: center; line-height: 1.6; }
+  .view-toggle .btn-icon { width: 28px; height: 28px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .view-toggle .btn-icon.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  @media (max-width: 700px) { .bundle-card { flex-direction: column; } .bundle-card .bundle-right { width: 100%; margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; } }
+
+  /* ─── 库存清单视图 ─── */
+  .product-grid #product-grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .product-grid #product-table-card { display: none; }
+  .product-list #product-grid-view { display: none !important; }
+  .product-list #product-table-card { display: block; }
+</style>
+</head>
+<body>
+
+<!-- 头部 -->
+<div class="header">
+  <h1>🎁 伴手礼管理后台 <span>GiftBasket Manager</span></h1>
+</div>
+
+<!-- Tab 导航 -->
+<div class="tabs" id="tabs">
+  <button class="tab-btn active" data-tab="dashboard">📊 仪表盘</button>
+  <button class="tab-btn" data-tab="products">📦 库存清单</button>
+  <button class="tab-btn" data-tab="bundles">🧺 成品方案</button>
+  <button class="tab-btn" data-tab="competitors">🔍 竞品对比</button>
+  <button class="tab-btn" data-tab="calculator">🧮 计算器</button>
+  <button class="tab-btn" data-tab="ops">📋 运营看板</button>
+  <button class="tab-btn" data-tab="stock">📋 进货记录</button>
+</div>
+
+<!-- ═══ 仪表盘 ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="card-grid" id="dashboard-stats"></div>
+  <div class="card">
+    <div class="card-title">最近方案</div>
+    <div id="dashboard-bundles"></div>
+  </div>
+</div>
+
+<!-- ═══ 货物清单 ═══ -->
+<div class="page" id="page-products">
+  <div class="toolbar">
+    <div class="filter-chips" id="product-filters">
+      <span class="chip active" data-category="">全部</span>
+      <span class="chip" data-category="盒子">📦 盒子</span>
+      <span class="chip" data-category="辅料">🎀 辅料</span>
+      <span class="chip" data-category="糖果">🍬 糖果</span>
+      <span class="chip" data-category="单品">🎁 单品</span>
+    </div>
+    <div class="spacer"></div>
+    <input class="search-input" id="product-search" placeholder="搜索商品..." style="max-width:200px">
+    <div class="view-toggle">
+      <button class="btn-icon active" id="pview-grid" onclick="setProductView('grid')" title="网格">⊞</button>
+      <button class="btn-icon" id="pview-list" onclick="setProductView('list')" title="列表">☰</button>
+    </div>
+    <button class="btn btn-primary" onclick="openProductModal()">＋ 新增商品</button>
+  </div>
+  <div id="product-container" class="product-grid">
+    <div class="card" id="product-table-card">
+    <div class="table-wrap"><table><thead><tr>
+      <th style="width:56px;">图片</th>
+      <th class="sortable" data-sort="name">名称 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="category">分类 <span class="sort-arrow"></span></th>
+      <th class="sortable text-right" data-sort="unit_price">单价 <span class="sort-arrow"></span></th>
+      <th class="sortable text-center" data-sort="stock">库存 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="source">来源 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="box_length">尺寸 <span class="sort-arrow"></span></th>
+      <th>操作</th>
+    </tr></thead><tbody id="product-table"></tbody></table></div>
+    </div>
+    <div id="product-grid-view"></div>
+  </div>
+</div>
+
+<!-- ═══ 成品方案 ═══ -->
+<div class="page" id="page-bundles">
+  <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center;">
+    <button class="btn btn-primary" onclick="openBundleModal()">＋ 新建方案</button>
+    <div class="spacer"></div>
+    <div class="view-toggle">
+      <button class="btn-icon active" id="view-grid" onclick="setBundleView('grid')" title="网格">⊞</button>
+      <button class="btn-icon" id="view-list" onclick="setBundleView('list')" title="列表">☰</button>
+    </div>
+  </div>
+  <div id="bundle-list" class="bundle-grid"></div>
+</div>
+
+<!-- ═══ 竞品对比 ═══ -->
+<div class="page" id="page-competitors">
+  <div style="margin-bottom:16px;display:flex;gap:8px;">
+    <button class="btn btn-primary" onclick="openCompetitorModal()">＋ 新增竞品</button>
+  </div>
+  <div id="competitor-list"></div>
+</div>
+
+<!-- ═══ 计算器 ═══ -->
+<div class="page" id="page-calculator">
+  <div class="card">
+    <div class="card-title">快速报价</div>
+    <div class="toolbar">
+      <input id="calc-search" placeholder="搜索添加商品..." style="max-width:300px" oninput="filterCalcProducts()">
+    </div>
+    <div id="calc-product-pool" style="max-height:200px;overflow-y:auto;margin-bottom:12px;"></div>
+    <div id="calc-items"></div>
+    <div class="form-row" style="align-items:center;margin-top:12px;">
+      <div class="margin-slider">
+        <span style="font-size:13px;color:var(--text-secondary);">利润率:</span>
+        <input type="range" id="calc-margin" min="0" max="500" value="70" oninput="recalcCalculator()">
+        <span class="value" id="calc-margin-label">70%</span>
+      </div>
+      <button class="btn btn-primary" onclick="recalcCalculator()">重新计算</button>
+    </div>
+    <div id="calc-result"></div>
+  </div>
+</div>
+
+<!-- ═══ 运营看板 ═══ -->
+<div class="page" id="page-ops">
+  <div class="ops-grid" id="ops-strategy"></div>
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>📋 待办清单</span>
+      <button class="btn btn-primary btn-sm" onclick="openChecklistModal()">＋ 新增</button>
+    </div>
+    <div id="checklist-items"></div>
+  </div>
+</div>
+
+<!-- ═══ 进货记录 ═══ -->
+<div class="page" id="page-stock">
+  <div class="toolbar">
+    <select id="stock-filter-product" style="max-width:300px;" onchange="loadStockRecords()">
+      <option value="">全部商品</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="btn btn-primary" onclick="openStockRecordModal()">＋ 新增记录</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table><thead><tr>
+      <th>时间</th><th>商品</th><th>类型</th><th class="text-center">数量</th><th class="text-right">单价</th><th class="text-right">金额</th><th>供应商</th><th>备注</th><th>操作</th>
+    </tr></thead><tbody id="stock-table"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ═══ Modal ═══ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content">
+    <h2 id="modal-title">Title</h2>
+    <div id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  API 工具
+// ═══════════════════════════════════════════════════════════════
+const API = '/api';
+
+async function apiGet(path) {
+  const r = await fetch(API + path);
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  return r.json();
+}
+async function apiPut(path, body) {
+  const r = await fetch(API + path, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  return r.json();
+}
+async function apiDelete(path) {
+  const r = await fetch(API + path, { method:'DELETE' });
+  return r.json();
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Tab 切换
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+
+  // 按需加载
+  const tab = btn.dataset.tab;
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'products') loadProducts();
+  if (tab === 'bundles') loadBundles();
+  if (tab === 'competitors') loadCompetitors();
+  if (tab === 'calculator') { loadCalcProducts(); recalcCalculator(); }
+  if (tab === 'ops') loadOps();
+  if (tab === 'stock') loadStockRecords();
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  仪表盘
+// ═══════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  const d = await apiGet('/dashboard');
+  if (!d.ok) return;
+  const data = d.data;
+  const cat = data.products_by_category;
+  document.getElementById('dashboard-stats').innerHTML = `
+    <div class="stat-card"><div class="number">${data.total_products}</div><div class="label">📦 商品总数</div>
+      <div class="sub">盒子${cat.盒子||0} · 辅料${cat.辅料||0} · 糖果${cat.糖果||0} · 单品${cat.单品||0}</div></div>
+    <div class="stat-card"><div class="number">${data.total_bundles}</div><div class="label">🧺 成品方案</div></div>
+    <div class="stat-card"><div class="number">${data.total_competitors}</div><div class="label">🔍 竞品方案</div></div>
+    <div class="stat-card"><div class="number">${data.pending_checklist}</div><div class="label">📋 待办事项</div></div>`;
+
+  const bundles = data.recent_bundles || [];
+  const el = document.getElementById('dashboard-bundles');
+  if (bundles.length === 0) { el.innerHTML = '<div class="empty">暂无方案</div>'; return; }
+  el.innerHTML = '<div class="table-wrap"><table><tr><th>方案名</th><th class="text-right">成本</th><th class="text-right">售价</th><th class="text-right">利润率</th><th>状态</th></tr>' +
+    bundles.map(b => `<tr>
+      <td><strong>${esc(b.name)}</strong></td>
+      <td class="text-right money">¥${b.total_cost?.toFixed(2)}</td>
+      <td class="text-right money">¥${b.sell_price?.toFixed(2)}</td>
+      <td class="text-right">${b.margin_rate}%</td>
+      <td><span class="badge badge-${b.status === '已发布' ? 'published' : b.status === '草稿' ? 'draft' : 'off'}">${b.status||'草稿'}</span></td>
+    </tr>`).join('') + '</table></div>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  库存清单
+// ═══════════════════════════════════════════════════════════════
+let productsCache = [];
+let productFilter = '';
+let productSearch = '';
+let productViewMode = 'grid';
+let productSortField = null;
+let productSortDir = 'asc';
+
+function setProductView(mode) {
+  productViewMode = mode;
+  document.getElementById('pview-grid').classList.toggle('active', mode === 'grid');
+  document.getElementById('pview-list').classList.toggle('active', mode === 'list');
+  document.getElementById('product-container').className = 'product-' + mode;
+  renderProducts();
+}
+
+document.getElementById('product-filters').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#product-filters .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  productFilter = chip.dataset.category;
+  renderProducts();
+});
+
+document.getElementById('product-search').addEventListener('input', e => {
+  productSearch = e.target.value;
+  renderProducts();
+});
+
+// Sortable table headers
+document.querySelector('#product-table-card thead').addEventListener('click', e => {
+  const th = e.target.closest('th.sortable');
+  if (!th) return;
+  const field = th.dataset.sort;
+  if (productSortField === field) {
+    productSortDir = productSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    productSortField = field;
+    productSortDir = 'asc';
+  }
+  renderProducts();
+});
+
+async function loadProducts() {
+  const res = await apiGet('/products');
+  if (res.ok) { productsCache = res.data; renderProducts(); }
+}
+
+function renderProducts() {
+  let list = productsCache;
+  if (productFilter) list = list.filter(p => p.category === productFilter);
+  if (productSearch) list = list.filter(p => p.name.includes(productSearch));
+
+  // Sort
+  if (productSortField) {
+    const dir = productSortDir === 'asc' ? 1 : -1;
+    const field = productSortField;
+    list = [...list].sort((a, b) => {
+      let va = a[field], vb = b[field];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va == null) va = '';
+      if (vb == null) vb = '';
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'zh-CN') * dir;
+    });
+  }
+
+  if (productViewMode === 'grid') {
+    renderProductsGrid(list);
+  } else {
+    renderProductsTable(list);
+  }
+}
+
+function renderProductsTable(list) {
+  // Update header sort indicators
+  document.querySelectorAll('#product-table-card th.sortable').forEach(th => {
+    const field = th.dataset.sort;
+    th.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
+    if (field === productSortField) {
+      th.classList.add('sorted', productSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    }
+  });
+
+  const tbody = document.getElementById('product-table');
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">暂无商品</div></td></tr>'; return; }
+  tbody.innerHTML = list.map(p => `<tr>
+    <td>${p.image
+      ? `<img src="/images/${esc(p.image)}" class="thumb-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" title="${esc(p.name)}"><div class="thumb-placeholder" style="display:none;">📷</div>`
+      : `<div class="thumb-placeholder">📷</div>`}</td>
+    <td><a class="link-name" onclick="productDetail(${p.id})" title="查看详情">${esc(p.name)}</a></td>
+    <td><span class="badge" style="background:var(--primary-light);color:var(--primary);">${p.category}</span></td>
+    <td class="text-right money">¥${p.unit_price.toFixed(2)}</td>
+    <td class="text-center">${p.stock||0}</td>
+    <td>${p.link ? `<a class="link-source" href="${escAttr(p.link)}" target="_blank" onclick="event.stopPropagation()" title="打开购买链接">${p.source || '🔗'}</a>` : (p.source || '-')}</td>
+    <td>${p.box_length ? `${p.box_length}×${p.box_width||'-'}×${p.box_height||'-'}` : '-'}</td>
+    <td>
+      <div class="btn-group">
+        <button class="btn-icon" onclick="openProductModal(${p.id})" title="编辑">✏️</button>
+        <button class="btn-icon" onclick="deleteProduct(${p.id})" title="删除">🗑️</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function renderProductsGrid(list) {
+  const el = document.getElementById('product-grid-view');
+  if (list.length === 0) { el.innerHTML = '<div class="empty" style="grid-column:1/-1;">暂无商品</div>'; return; }
+  el.innerHTML = list.map(p => `
+    <div class="card bundle-grid-card product-grid-card" onclick="productDetail(${p.id})">
+      <div class="grid-cover">
+        ${p.image ? `<img src="/images/${esc(p.image)}">` : '<div class="grid-cover-placeholder">📦</div>'}
+        <span class="badge" style="position:absolute;top:8px;right:8px;background:var(--primary-light);color:var(--primary);">${p.category}</span>
+      </div>
+      <div class="grid-info">
+        <div class="grid-name">${esc(p.name)}</div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:13px;">
+          <strong>¥${p.unit_price.toFixed(2)}</strong>
+          <span style="color:var(--text-secondary);">库存: ${p.stock||0}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${p.source||''} ${p.box_length ? `· ${p.box_length}×${p.box_width||''}cm` : ''}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 商品详情弹窗 ──
+function productDetail(id) {
+  const product = productsCache.find(p => p.id === id);
+  if (!product) return;
+  document.getElementById('modal-title').textContent = '📋 商品详情';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex-shrink:0;width:160px;text-align:center;">
+        ${product.image ? `<img src="/images/${esc(product.image)}" style="width:100%;border-radius:8px;border:1px solid var(--border);">` : '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;font-size:48px;">📷</div>'}
+      </div>
+      <div style="flex:1;min-width:240px;">
+        <h3 style="margin:0 0 12px 0;">${esc(product.name)}</h3>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
+          <div><span style="color:var(--text-secondary);">分类:</span> <span class="badge" style="background:var(--primary-light);color:var(--primary);">${product.category}</span></div>
+          <div><span style="color:var(--text-secondary);">子分类:</span> ${product.subcategory || '-'}</div>
+          <div><span style="color:var(--text-secondary);">单价:</span> <strong>¥${product.unit_price?.toFixed(2)}</strong> / ${product.unit||'个'}</div>
+          <div><span style="color:var(--text-secondary);">来源:</span> ${product.source||'-'}</div>
+          <div><span style="color:var(--text-secondary);">尺寸:</span> ${product.box_length ? `${product.box_length}×${product.box_width||'-'}×${product.box_height||'-'} cm` : '-'}</div>
+          <div><span style="color:var(--text-secondary);">库存:</span> ${product.stock||0}</div>
+        </div>
+        ${product.link ? `<div style="margin-top:8px;"><span style="color:var(--text-secondary);">购买链接:</span> <a href="${escAttr(product.link)}" target="_blank" class="link-source" style="word-break:break-all;">${esc(product.link)}</a></div>` : ''}
+        ${product.notes ? `<div style="margin-top:8px;"><span style="color:var(--text-secondary);">备注:</span> ${esc(product.notes)}</div>` : ''}
+        <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">创建: ${product.created_at||'-'} · 更新: ${product.updated_at||'-'}</div>
+      </div>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn" onclick="closeModal()">关闭</button>
+    <button class="btn btn-primary" onclick="closeModal();openProductModal(${product.id})">✏️ 编辑</button>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+// ── 商品 Modal ──
+function openProductModal(id) {
+  const isEdit = !!id;
+  const product = isEdit ? productsCache.find(p => p.id === id) : null;
+  document.getElementById('modal-title').textContent = isEdit ? '✏️ 编辑商品' : '＋ 新增商品';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>名称 *</label><input id="pf-name" value="${escAttr(product?.name||'')}"></div>
+    <div class="form-group"><label>商品图片</label>
+      <div class="image-upload-area" onclick="this.querySelector('input').click()">
+        <input type="file" accept="image/*" onchange="handleImageSelect(this)">
+        <div id="pf-img-preview">${product?.image ? `<img src="/images/${esc(product.image)}" class="preview"><br><small style="color:var(--text-secondary);">点击更换</small>` : '📷 点击或拖拽上传图片'}</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>分类 *</label>
+        <select id="pf-category">${['盒子','辅料','糖果','单品'].map(c => `<option ${product?.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label>子分类</label><input id="pf-sub" value="${escAttr(product?.subcategory||'')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>单价</label><input type="number" step="0.01" id="pf-price" value="${product?.unit_price||0}"></div>
+      <div class="form-group"><label>库存</label><input type="number" id="pf-stock" value="${product?.stock||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>单位</label><input id="pf-unit" value="${escAttr(product?.unit||'个')}"></div>
+      <div class="form-group"><label>来源</label><input id="pf-source" value="${escAttr(product?.source||'')}"></div>
+    </div>
+    <div class="form-group"><label>链接</label><input id="pf-link" value="${escAttr(product?.link||'')}"></div>
+    <div class="form-row-3">
+      <div class="form-group"><label>长(cm)</label><input type="number" step="0.1" id="pf-len" value="${product?.box_length||''}"></div>
+      <div class="form-group"><label>宽(cm)</label><input type="number" step="0.1" id="pf-wid" value="${product?.box_width||''}"></div>
+      <div class="form-group"><label>高(cm)</label><input type="number" step="0.1" id="pf-hei" value="${product?.box_height||''}"></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea id="pf-notes">${escAttr(product?.notes||'')}</textarea></div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="saveProduct(${id||''})">${isEdit?'保存修改':'创建'}</button>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+// ── 图片上传处理 ──
+function handleImageSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    pendingImage = e.target.result;
+    const preview = document.getElementById('pf-img-preview');
+    preview.innerHTML = `<img src="${e.target.result}" class="preview"><br><small style="color:var(--success);">已选择: ${file.name}</small>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveProduct(id) {
+  const body = {
+    name: document.getElementById('pf-name').value,
+    category: document.getElementById('pf-category').value,
+    subcategory: document.getElementById('pf-sub').value,
+    unit_price: parseFloat(document.getElementById('pf-price').value) || 0,
+    stock: parseInt(document.getElementById('pf-stock').value) || 0,
+    unit: document.getElementById('pf-unit').value || '个',
+    source: document.getElementById('pf-source').value,
+    link: document.getElementById('pf-link').value,
+    box_length: parseFloat(document.getElementById('pf-len').value) || null,
+    box_width: parseFloat(document.getElementById('pf-wid').value) || null,
+    box_height: parseFloat(document.getElementById('pf-hei').value) || null,
+    notes: document.getElementById('pf-notes').value,
+  };
+  if (!body.name) { toast('请输入商品名称', 'error'); return; }
+  const res = id ? await apiPut(`/products/${id}`, body) : await apiPost('/products', body);
+  if (res.ok) {
+    // 如果选了新图片，上传
+    if (pendingImage && res.data?.id) {
+      await apiPost(`/products/${res.data.id}/image`, { image: pendingImage });
+    }
+    toast(id ? '保存成功' : '创建成功'); closeModal(); loadProducts();
+  }
+  else toast(res.error || '操作失败', 'error');
+}
+
+async function deleteProduct(id) {
+  if (!confirm('确定删除该商品？')) return;
+  const res = await apiDelete(`/products/${id}`);
+  if (res.ok) { toast('已删除'); loadProducts(); }
+  else toast(res.error || '删除失败', 'error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  进货记录
+// ═══════════════════════════════════════════════════════════════
+async function loadStockRecords() {
+  const pid = document.getElementById('stock-filter-product').value;
+  const products = (await apiGet('/products')).data || [];
+  const sel = document.getElementById('stock-filter-product');
+  sel.innerHTML = '<option value="">全部商品</option>' + products.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  if (pid) sel.value = pid;
+
+  const res = await apiGet('/stock-records' + (pid ? '?product_id='+pid : ''));
+  const tbody = document.getElementById('stock-table');
+  if (!res.ok || res.data.length === 0) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty">暂无记录</div></td></tr>'; return; }
+  tbody.innerHTML = res.data.map(r => `<tr>
+    <td>${r.created_at?.substr(0,16)}</td>
+    <td>${esc(r.product_name)}</td>
+    <td><span class="badge" style="background:${r.change_type==='入库'?'#d1fae5':r.change_type==='出库'?'#fee2e2':'#fef3c7'};color:${r.change_type==='入库'?'#065f46':r.change_type==='出库'?'#991b1b':'#92400e'};">${r.change_type}</span></td>
+    <td class="text-center">${r.quantity}</td>
+    <td class="text-right money">¥${r.unit_price?.toFixed(2)}</td>
+    <td class="text-right money">¥${(r.quantity * r.unit_price).toFixed(2)}</td>
+    <td>${r.supplier||'-'}</td>
+    <td>${r.notes||'-'}</td>
+    <td><button class="btn-icon" onclick="deleteStockRecord(${r.id})">🗑️</button></td>
+  </tr>`).join('');
+}
+
+function openStockRecordModal() {
+  apiGet('/products').then(pres => {
+    const products = (pres.data||[]).filter(p => p.category !== '盒子' || p.unit_price > 0);
+    document.getElementById('modal-title').textContent = '＋ 进货记录';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-group"><label>商品 *</label>
+        <select id="sr-product">${products.map(p => `<option value="${p.id}">${esc(p.name)} (库存:${p.stock||0})</option>`).join('')}</select></div>
+      <div class="form-row">
+        <div class="form-group"><label>类型</label>
+          <select id="sr-type"><option>入库</option><option>出库</option><option>盘点</option></select></div>
+        <div class="form-group"><label>数量</label><input type="number" id="sr-qty" value="1" min="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>单价</label><input type="number" step="0.01" id="sr-price" value="0"></div>
+        <div class="form-group"><label>供应商</label><input id="sr-supplier"></div>
+      </div>
+      <div class="form-group"><label>备注</label><input id="sr-notes"></div>`;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveStockRecord()">保存</button>`;
+    document.getElementById('modal-overlay').classList.add('active');
+  });
+}
+
+async function saveStockRecord() {
+  const body = {
+    product_id: parseInt(document.getElementById('sr-product').value),
+    change_type: document.getElementById('sr-type').value,
+    quantity: parseInt(document.getElementById('sr-qty').value),
+    unit_price: parseFloat(document.getElementById('sr-price').value) || 0,
+    supplier: document.getElementById('sr-supplier').value || null,
+    notes: document.getElementById('sr-notes').value || null,
+  };
+  const res = await apiPost('/stock-records', body);
+  if (res.ok) { toast('记录已保存'); closeModal(); loadStockRecords(); }
+  else toast(res.error||'保存失败','error');
+}
+
+async function deleteStockRecord(id) {
+  if (!confirm('确定删除？')) return;
+  const res = await apiDelete('/stock-records/'+id);
+  if (res.ok) { toast('已删除'); loadStockRecords(); }
+  else toast(res.error||'删除失败','error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  成品方案
+// ═══════════════════════════════════════════════════════════════
+// ── 成品方案展示 ──
+let bundleViewMode = 'grid'; // 'grid' or 'list'
+
+function setBundleView(mode) {
+  bundleViewMode = mode;
+  document.getElementById('view-grid').classList.toggle('active', mode === 'grid');
+  document.getElementById('view-list').classList.toggle('active', mode === 'list');
+  document.getElementById('bundle-list').className = 'bundle-' + mode;
+  loadBundles();
+}
+
+async function loadBundles() {
+  const res = await apiGet('/bundles');
+  if (!res.ok) return;
+  const el = document.getElementById('bundle-list');
+  el.className = 'bundle-' + bundleViewMode;
+  if (res.data.length === 0) { el.innerHTML = '<div class="empty">暂无方案</div>'; return; }
+
+  if (bundleViewMode === 'grid') {
+    el.innerHTML = res.data.map(b => {
+      const coverImg = b.images && b.images.length > 0 ? b.images[0] : null;
+      return `
+      <div class="card bundle-grid-card" onclick="openBundleEditor(${b.id})">
+        <div class="grid-cover">
+          ${coverImg ? `<img src="/images/bundles/${esc(coverImg.image)}">` : '<div class="grid-cover-placeholder">🧺</div>'}
+          <span class="badge badge-${b.status==='已发布'?'published':'draft'}" style="position:absolute;top:8px;left:8px;">${b.status||'草稿'}</span>
+        </div>
+        <div class="grid-info">
+          <div class="grid-name">${esc(b.name)}</div>
+          ${b.box_type ? `<div style="font-size:11px;color:var(--text-secondary);">📦 ${esc(b.box_type)}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:6px;font-size:12px;">
+            <span>成本 <strong>¥${b.total_cost?.toFixed(2)}</strong></span>
+            <span style="color:var(--primary);">售价 <strong>¥${b.sell_price?.toFixed(2)}</strong></span>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${b.items?.length||0}件商品 · 利润率 ${b.margin_rate}%${(b.images||[]).length > 0 ? ` · 📸${b.images.length}张` : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    // List mode — full detail cards
+    el.innerHTML = res.data.map(b => {
+      const hasImgs = b.images && b.images.length > 0;
+      return `
+      <div class="card bundle-card">
+        <div class="bundle-left">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="expand-icon" onclick="this.closest('.bundle-card').classList.toggle('expanded')">▶</span>
+            <strong style="font-size:16px;">${esc(b.name)}</strong>
+            <span class="badge badge-${b.status==='已发布'?'published':b.status==='草稿'?'draft':'off'}">${b.status||'草稿'}</span>
+            ${b.box_type ? `<span style="color:var(--text-secondary);font-size:13px;">📦 ${esc(b.box_type)}</span>` : ''}
+          </div>
+          <div class="summary">
+            <span>成本: <strong>¥${b.total_cost?.toFixed(2)}</strong></span>
+            <span>售价: <strong style="color:var(--primary);">¥${b.sell_price?.toFixed(2)}</strong></span>
+            <span>利润率: <strong>${b.margin_rate}%</strong></span>
+            <span>利润: <strong style="color:var(--success);">¥${b.margin_amount?.toFixed(2)}</strong></span>
+          </div>
+          <div class="body">
+            <div class="table-wrap"><table>
+              <tr><th style="width:40px;"></th><th>商品</th><th>分类</th><th class="text-right">单价</th><th class="text-center">数量</th><th class="text-right">小计</th></tr>
+              ${(b.items||[]).map(i => `<tr>
+                <td>${i.image ? `<img src="/images/${esc(i.image)}" class="thumb-img">` : `<div class="thumb-placeholder" style="width:36px;height:36px;font-size:9px;">📷</div>`}</td>
+                <td>${esc(i.product_name)}</td><td>${i.category||'-'}</td>
+                <td class="text-right money">¥${i.unit_price?.toFixed(2)}</td>
+                <td class="text-center">${i.quantity}</td>
+                <td class="text-right money">¥${(i.quantity * i.unit_price).toFixed(2)}</td>
+              </tr>`).join('')}
+              <tr style="font-weight:700;background:var(--primary-light);">
+                <td colspan="5" class="text-right">成本 / 售价</td>
+                <td class="text-right money">¥${b.total_cost?.toFixed(2)} / ¥${b.sell_price?.toFixed(2)}</td>
+              </tr>
+            </table></div>
+          </div>
+        </div>
+        ${hasImgs ? `<div class="bundle-right">
+          <div style="font-weight:600;font-size:13px;margin-bottom:8px;">📸 成品展示 (${b.images.length})</div>
+          <div class="gallery-grid">
+            ${b.images.map(img => `<div class="gallery-block"><img src="/images/bundles/${esc(img.image)}" onclick="window.open(this.src)"></div>`).join('')}
+          </div>
+        </div>` : `<div class="bundle-right no-images"><div class="gallery-placeholder">📸 暂无成品图<br><small>编辑可添加</small></div></div>`}
+        <div class="bundle-actions">
+          <button class="btn btn-sm" onclick="openBundleEditor(${b.id})">✏️ 编辑</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">🗑️ 删除</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+async function deleteBundle(id) {
+  if (!confirm('确定删除该方案？')) return;
+  const res = await apiDelete(`/bundles/${id}`);
+  if (res.ok) { toast('已删除'); loadBundles(); }
+  else toast(res.error || '删除失败', 'error');
+}
+
+// ── 方案编辑 Modal ──
+let bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [], existingImages: [], newImages: [] };
+
+async function openBundleEditor(id) {
+  const res = await apiGet(`/bundles/${id}`);
+  if (!res.ok) { toast('加载方案失败', 'error'); return; }
+  const b = res.data;
+  bundleEditorState = {
+    bundleId: b.id,
+    name: b.name,
+    marginRate: b.margin_rate,
+    items: (b.items || []).map(i => ({ ...i })),
+    existingImages: (b.images || []).map(img => ({ ...img })),
+    newImages: [],
+  };
+  renderBundleEditor();
+}
+
+function openBundleModal() {
+  bundleEditorState = { bundleId: null, name: '', marginRate: 70, items: [], existingImages: [], newImages: [] };
+  renderBundleEditor();
+}
+
+function buildBundleImageGallery(state) {
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+  // Existing images
+  for (const img of state.existingImages) {
+    const src = '/images/bundles/' + img.image;
+    html += `<div class="bundle-gallery-item">
+      <img src="${src}" onerror="this.parentElement.style.display='none'">
+      <button class="gallery-del" onclick="deleteBundleImage(${state.bundleId},${img.id},this)">✕</button>
+    </div>`;
+  }
+  // New pending images
+  for (let i = 0; i < state.newImages.length; i++) {
+    html += `<div class="bundle-gallery-item">
+      <img src="${state.newImages[i]}">
+      <button class="gallery-del" onclick="removeNewBundleImage(${i})">✕</button>
+    </div>`;
+  }
+  html += `<div class="bundle-gallery-item add-btn" onclick="document.getElementById('bundle-img-input').click()">
+    <span>＋</span>
+    <input type="file" id="bundle-img-input" accept="image/*" multiple style="display:none" onchange="handleBundleImageSelect(this)">
+  </div>`;
+  html += '</div>';
+  return html;
+}
+
+function handleBundleImageSelect(input) {
+  for (const file of input.files) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      bundleEditorState.newImages.push(e.target.result);
+      document.getElementById('be-images').innerHTML = buildBundleImageGallery(bundleEditorState);
+    };
+    reader.readAsDataURL(file);
+  }
+  input.value = '';
+}
+
+function removeNewBundleImage(idx) {
+  bundleEditorState.newImages.splice(idx, 1);
+  document.getElementById('be-images').innerHTML = buildBundleImageGallery(bundleEditorState);
+}
+
+async function deleteBundleImage(bundleId, imageId, btnEl) {
+  if (!confirm('确定删除此图片？')) return;
+  const res = await apiDelete(`/bundles/${bundleId}/images/${imageId}`);
+  if (res.ok) {
+    btnEl.closest('.bundle-gallery-item').remove();
+    bundleEditorState.existingImages = bundleEditorState.existingImages.filter(i => i.id !== imageId);
+    toast('已删除');
+  } else toast(res.error||'删除失败','error');
+}
+
+async function renderBundleEditor() {
+  const s = bundleEditorState;
+  const products = await apiGet('/products');
+  const allProducts = products.data || [];
+
+  document.getElementById('modal-title').textContent = s.bundleId ? '✏️ 编辑方案' : '＋ 新建方案';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>方案名称 *</label><input id="be-name" value="${escAttr(s.name)}"></div>
+    <div class="form-group"><label>利润率</label>
+      <div class="margin-slider">
+        <input type="range" id="be-margin" min="0" max="500" value="${s.marginRate}" oninput="updateBundleMargin(this.value)">
+        <span class="value" id="be-margin-label">${s.marginRate}%</span>
+      </div>
+    </div>
+    <div style="margin-bottom:6px;font-weight:600;">商品池</div>
+    <input id="be-search" placeholder="🔍 搜索商品..." oninput="filterBundleProducts()" style="margin-bottom:6px;">
+    <div id="be-product-pool" style="max-height:180px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;">
+      ${allProducts.map(p => `<div class="bundle-product-item" data-name="${esc(p.name)}">
+        <span class="info">${esc(p.name)} <span class="price">¥${p.unit_price.toFixed(2)}</span></span>
+        <button class="btn btn-sm btn-success" onclick="addToBundle(${p.id}, '${esc(p.name)}', ${p.unit_price})">＋</button>
+      </div>`).join('')}
+    </div>
+    <div style="font-weight:600;margin-bottom:8px;">已选商品 (${s.items.length})</div>
+    <div id="be-items">${s.items.length === 0 ? '<div class="empty">暂未添加商品</div>' :
+      s.items.map((i, idx) => `<div class="bundle-product-item">
+        <span class="info">${esc(i.product_name)} <span class="price">¥${i.unit_price.toFixed(2)} × ${i.quantity}</span></span>
+        <span style="font-weight:600;color:var(--primary);">¥${(i.quantity * i.unit_price).toFixed(2)}</span>
+        <button class="btn-icon" onclick="removeFromBundle(${idx})">✕</button>
+      </div>`).join('')}</div>
+    <div style="margin-top:12px;font-weight:600;">📸 成品展示图</div>
+    <div id="be-images">${buildBundleImageGallery(s)}</div>
+    <div id="be-summary" style="margin-top:12px;padding:12px;background:var(--primary-light);border-radius:var(--radius-sm);">
+      ${renderBundleSummary(s)}
+    </div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="saveBundle()">${s.bundleId ? '保存修改' : '创建方案'}</button>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function renderBundleSummary(s) {
+  const totalCost = s.items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  const marginAmount = totalCost * s.marginRate / 100;
+  const sellPrice = totalCost + marginAmount;
+  return `<div style="display:flex;gap:24px;font-size:14px;">
+    <span>成本: <strong>¥${totalCost.toFixed(2)}</strong></span>
+    <span>利润率: <strong>${s.marginRate}%</strong></span>
+    <span>利润: <strong style="color:var(--success);">¥${marginAmount.toFixed(2)}</strong></span>
+    <span>售价: <strong style="color:var(--primary);font-size:18px;">¥${sellPrice.toFixed(2)}</strong></span>
+  </div>`;
+}
+
+function updateBundleMargin(val) {
+  bundleEditorState.marginRate = parseInt(val);
+  document.getElementById('be-margin-label').textContent = val + '%';
+  const s = bundleEditorState;
+  document.getElementById('be-summary').innerHTML = renderBundleSummary(s);
+}
+
+// ── 商品池搜索 ──
+function filterBundleProducts() {
+  const q = (document.getElementById('be-search').value || '').toLowerCase();
+  document.querySelectorAll('#be-product-pool .bundle-product-item').forEach(el => {
+    const name = (el.dataset.name || '').toLowerCase();
+    el.style.display = q ? (name.includes(q) ? '' : 'none') : '';
+  });
+}
+
+function addToBundle(id, name, price) {
+  const s = bundleEditorState;
+  const existing = s.items.find(i => i.product_id === id);
+  if (existing) { existing.quantity += 1; }
+  else { s.items.push({ product_id: id, product_name: name, unit_price: price, quantity: 1 }); }
+  renderBundleEditor();
+}
+
+function removeFromBundle(idx) {
+  bundleEditorState.items.splice(idx, 1);
+  renderBundleEditor();
+}
+
+async function saveBundle() {
+  const s = bundleEditorState;
+  const name = document.getElementById('be-name').value;
+  if (!name) { toast('请输入方案名称', 'error'); return; }
+  if (s.items.length === 0) { toast('请至少添加一个商品', 'error'); return; }
+
+  const body = {
+    name, margin_rate: s.marginRate,
+    items: s.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
+  };
+  const res = s.bundleId ? await apiPut(`/bundles/${s.bundleId}`, body) : await apiPost('/bundles', body);
+  if (res.ok) {
+    const bundleId = res.data.id || s.bundleId;
+    // 上传新图片
+    if (s.newImages.length > 0) {
+      await apiPost(`/bundles/${bundleId}/images`, {
+        images: s.newImages.map((img, i) => ({ image: img, sort_order: i }))
+      });
+    }
+    toast(s.bundleId ? '保存成功' : '创建成功'); closeModal(); loadBundles();
+  }
+  else toast(res.error || '操作失败', 'error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  竞品对比
+// ═══════════════════════════════════════════════════════════════
+async function loadCompetitors() {
+  const res = await apiGet('/competitors');
+  if (!res.ok) return;
+  const el = document.getElementById('competitor-list');
+  if (res.data.length === 0) { el.innerHTML = '<div class="empty">暂无竞品</div>'; return; }
+  el.innerHTML = res.data.map(c => `
+    <div class="competitor-card" onclick="this.classList.toggle('open')">
+      <div class="header">
+        <div><strong>${esc(c.name)}</strong>
+          <span class="platform-tag" style="margin-left:8px;">${c.box_desc||''}</span>
+        </div>
+        <div class="price-tag">¥${c.sell_price?.toFixed(2)}${c.member_price ? `  <span style="color:var(--success);font-weight:400;">(会员: ¥${c.member_price.toFixed(2)})</span>` : ''}</div>
+      </div>
+      <div class="details">
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">📦 ${c.box_size||'尺寸不详'} · ${(c.items||[]).length}件商品</div>
+        <div class="table-wrap"><table>
+          <tr><th>商品</th><th>规格</th><th class="text-center">数量</th></tr>
+          ${(c.items||[]).map(i => `<tr><td>${esc(i.item_name)}</td><td>${i.spec||'-'}</td><td class="text-center">${i.quantity}</td></tr>`).join('')}
+        </table></div>
+        <div class="btn-group" style="margin-top:8px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openCompetitorModal(${c.id})">✏️ 编辑</button>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCompetitor(${c.id})">🗑️ 删除</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteCompetitor(id) {
+  if (!confirm('确定删除该竞品？')) return;
+  const res = await apiDelete(`/competitors/${id}`);
+  if (res.ok) { toast('已删除'); loadCompetitors(); }
+  else toast(res.error || '删除失败', 'error');
+}
+
+function openCompetitorModal(id) {
+  const isEdit = !!id;
+  const loadData = isEdit ? apiGet(`/competitors/${id}`) : Promise.resolve({ data: null });
+  loadData.then(res => {
+    const c = res.data;
+    document.getElementById('modal-title').textContent = isEdit ? '✏️ 编辑竞品' : '＋ 新增竞品';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-row">
+        <div class="form-group"><label>名称 *</label><input id="cf-name" value="${escAttr(c?.name||'')}"></div>
+        <div class="form-group"><label>盒子描述</label><input id="cf-box" value="${escAttr(c?.box_desc||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>零售价</label><input type="number" step="0.01" id="cf-price" value="${c?.sell_price||0}"></div>
+        <div class="form-group"><label>会员价</label><input type="number" step="0.01" id="cf-member" value="${c?.member_price||''}"></div>
+      </div>
+      <div class="form-group"><label>盒子尺寸</label><input id="cf-size" value="${escAttr(c?.box_size||'')}"></div>
+      <div class="form-group"><label>内容物（每行一个商品）</label>
+        <textarea id="cf-items" rows="6">${c?.items ? c.items.map(i => `${i.item_name}${i.spec ? ' | '+i.spec : ''} | ${i.quantity||1}`).join('\n') : ''}</textarea>
+      </div>`;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCompetitor(${id||''})">${isEdit?'保存修改':'创建'}</button>`;
+    document.getElementById('modal-overlay').classList.add('active');
+  });
+}
+
+async function saveCompetitor(id) {
+  const itemsText = document.getElementById('cf-items').value.trim();
+  const items = itemsText ? itemsText.split('\n').filter(l=>l.trim()).map(line => {
+    const parts = line.split('|').map(s=>s.trim());
+    return { item_name: parts[0], spec: parts[1] || null, quantity: parseInt(parts[2]) || 1 };
+  }) : [];
+  const body = {
+    name: document.getElementById('cf-name').value,
+    box_desc: document.getElementById('cf-box').value,
+    sell_price: parseFloat(document.getElementById('cf-price').value) || 0,
+    member_price: parseFloat(document.getElementById('cf-member').value) || null,
+    box_size: document.getElementById('cf-size').value,
+    items,
+  };
+  if (!body.name) { toast('请输入竞品名称', 'error'); return; }
+  const res = id ? await apiPut(`/competitors/${id}`, body) : await apiPost('/competitors', body);
+  if (res.ok) { toast(id ? '保存成功' : '创建成功'); closeModal(); loadCompetitors(); }
+  else toast(res.error || '操作失败', 'error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  计算器
+// ═══════════════════════════════════════════════════════════════
+let calcSelectedItems = [];
+let pendingImage = null; // base64 图片数据，保存时上传
+
+async function loadCalcProducts() {
+  const res = await apiGet('/products');
+  if (!res.ok) return;
+  filterCalcProductsData = res.data;
+  filterCalcProducts();
+}
+
+let filterCalcProductsData = [];
+
+function filterCalcProducts() {
+  const q = (document.getElementById('calc-search').value || '').toLowerCase();
+  const list = q ? filterCalcProductsData.filter(p => p.name.toLowerCase().includes(q)) : filterCalcProductsData.slice(0, 30);
+  const el = document.getElementById('calc-product-pool');
+  el.innerHTML = list.map(p => `<div class="bundle-product-item">
+    <span class="info">${esc(p.name)} <span class="price">¥${p.unit_price.toFixed(2)}</span></span>
+    <button class="btn btn-sm btn-success" onclick="addCalcItem(${p.id}, '${esc(p.name)}', ${p.unit_price})">＋</button>
+  </div>`).join('');
+  if (list.length === 0) el.innerHTML = '<div class="empty">无匹配商品</div>';
+}
+
+function addCalcItem(id, name, price) {
+  const existing = calcSelectedItems.find(i => i.product_id === id);
+  if (existing) { existing.quantity += 1; }
+  else { calcSelectedItems.push({ product_id: id, name, unit_price: price, quantity: 1 }); }
+  recalcCalculator();
+}
+
+function removeCalcItem(idx) {
+  calcSelectedItems.splice(idx, 1);
+  recalcCalculator();
+}
+
+function recalcCalculator() {
+  const marginRate = parseInt(document.getElementById('calc-margin').value);
+  document.getElementById('calc-margin-label').textContent = marginRate + '%';
+
+  // 渲染已选
+  const el = document.getElementById('calc-items');
+  if (calcSelectedItems.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:16px;">请从上方商品池选择商品</div>';
+    document.getElementById('calc-result').innerHTML = '';
+    return;
+  }
+  el.innerHTML = calcSelectedItems.map((i, idx) => `<div class="bundle-product-item">
+    <span class="info">${esc(i.name)} <span class="price">¥${i.unit_price.toFixed(2)}</span></span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input type="number" min="1" value="${i.quantity}" style="width:50px;text-align:center;padding:2px 4px;"
+        onchange="updateCalcQty(${idx}, this.value)">
+      <span style="font-weight:600;color:var(--primary);min-width:60px;text-align:right;">¥${(i.unit_price * i.quantity).toFixed(2)}</span>
+      <button class="btn-icon" onclick="removeCalcItem(${idx})">✕</button>
+    </div>
+  </div>`).join('');
+
+  // 计算结果
+  apiPost('/calculator', { items: calcSelectedItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })), margin_rate: marginRate }).then(res => {
+    if (!res.ok) return;
+    const d = res.data;
+    document.getElementById('calc-result').innerHTML = `
+      <div class="calc-result">
+        <div class="line"><span>成本合计</span><span>¥${d.total_cost.toFixed(2)}</span></div>
+        <div class="line"><span>利润率</span><span>${d.margin_rate}%</span></div>
+        <div class="line"><span>利润金额</span><span style="color:var(--success);">¥${d.margin_amount.toFixed(2)}</span></div>
+        <div class="line total"><span>建议售价</span><span>¥${d.sell_price.toFixed(2)}</span></div>
+        <div style="margin-top:8px;font-size:13px;color:var(--text-secondary);">
+          取整建议: ${(d.suggestions||[]).map(s => `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:var(--card);border-radius:4px;border:1px solid var(--border);">${esc(s.label)}: <strong>¥${s.price.toFixed(2)}</strong></span>`).join('')}
+        </div>
+      </div>`;
+  });
+}
+
+function updateCalcQty(idx, val) {
+  calcSelectedItems[idx].quantity = parseInt(val) || 1;
+  recalcCalculator();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  运营看板
+// ═══════════════════════════════════════════════════════════════
+const strategyData = [
+  { title: '📕 小红书', desc: '商品图要精致、场景化。使用原木/白色背景拍摄。标题带 emoji 和关键词。发布时间：中午12点 / 晚8点。', color: '#ff6b6b' },
+  { title: '💬 私域(微信)', desc: '朋友圈每天2-3条，间隔4小时。带上价格锚点。客户下单后发感谢图。每周做一次限时折扣。', color: '#10b981' },
+  { title: '🐟 闲鱼', desc: '标题写满30字关键词。定价比同行低5-10%。用"清仓""特价"标签。回复率需 >90%。', color: '#f59e0b' },
+  { title: '🏢 B端', desc: '企事业团购为主。提供定制LOGO服务。阶梯报价：10-50单/51-200单/200+单。账期灵活。', color: '#6366f1' },
+];
+
+async function loadOps() {
+  // 策略卡片
+  document.getElementById('ops-strategy').innerHTML = strategyData.map(s =>
+    `<div class="ops-card" style="border-top-color:${s.color}">
+      <div class="ops-title">${s.title}</div>
+      <div class="ops-desc">${s.desc}</div>
+    </div>`
+  ).join('');
+
+  // 待办
+  const res = await apiGet('/checklist');
+  if (!res.ok) return;
+  const el = document.getElementById('checklist-items');
+  if (res.data.length === 0) { el.innerHTML = '<div class="empty">暂无待办</div>'; return; }
+  el.innerHTML = res.data.map(t => `
+    <div class="checklist-item ${t.done ? 'done' : ''}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleChecklist(${t.id}, this.checked)">
+      <span class="task-text">${esc(t.task)}</span>
+      ${t.platform ? `<span class="platform-tag">${esc(t.platform)}</span>` : ''}
+      <button class="btn-icon" onclick="deleteChecklistItem(${t.id})">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function toggleChecklist(id, done) {
+  await apiPut(`/checklist/${id}`, { done: done ? 1 : 0 });
+  loadOps();
+}
+
+async function deleteChecklistItem(id) {
+  if (!confirm('确定删除？')) return;
+  await apiDelete(`/checklist/${id}`);
+  loadOps();
+}
+
+function openChecklistModal() {
+  document.getElementById('modal-title').textContent = '＋ 新增待办';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>任务内容 *</label><input id="cl-task" placeholder="请输入任务..."></div>
+    <div class="form-group"><label>平台</label>
+      <select id="cl-platform"><option value="">全部</option><option>小红书</option><option>微信</option><option>闲鱼</option><option>B端</option></select></div>
+    <div class="form-group"><label>优先级</label>
+      <select id="cl-priority"><option value="0">普通</option><option value="1">高</option><option value="2">低</option></select></div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="saveChecklistItem()">创建</button>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+async function saveChecklistItem() {
+  const task = document.getElementById('cl-task').value;
+  if (!task) { toast('请输入任务内容', 'error'); return; }
+  const platform = document.getElementById('cl-platform').value || null;
+  const priority = parseInt(document.getElementById('cl-priority').value) || 0;
+  const res = await apiPost('/checklist', { task, platform, priority });
+  if (res.ok) { toast('创建成功'); closeModal(); loadOps(); }
+  else toast(res.error || '创建失败', 'error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  工具函数
+// ═══════════════════════════════════════════════════════════════
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); pendingImage = null; }
+
+// 点击遮罩关闭 Modal
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  初始化
+// ═══════════════════════════════════════════════════════════════
+loadDashboard();
+</script>
+</body>
+</html>
