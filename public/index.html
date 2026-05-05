@@ -73,6 +73,21 @@
   .text-center { text-align: center; }
   .money { font-variant-numeric: tabular-nums; }
 
+  /* ─── 可排序表头 ─── */
+  th.sortable {
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color 0.15s;
+  }
+  th.sortable:hover { color: var(--primary); }
+  th.sortable .sort-arrow {
+    display: inline-block; width: 12px; font-size: 10px; margin-left: 4px;
+    color: var(--border); vertical-align: middle; line-height: 1;
+  }
+  th.sortable.sorted .sort-arrow { color: var(--primary); }
+  th.sortable.sorted-asc .sort-arrow::after { content: '▲'; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '▼'; }
+  th.sortable:not(.sorted) .sort-arrow::after { content: '▲'; opacity: 0.3; }
+
   /* ─── 按钮 ─── */
   .btn {
     display: inline-flex; align-items: center; gap: 4px;
@@ -352,7 +367,14 @@
   <div id="product-container" class="product-grid">
     <div class="card" id="product-table-card">
     <div class="table-wrap"><table><thead><tr>
-      <th style="width:56px;">图片</th><th>名称</th><th>分类</th><th class="text-right">单价</th><th class="text-center">库存</th><th>来源</th><th>尺寸</th><th>操作</th>
+      <th style="width:56px;">图片</th>
+      <th class="sortable" data-sort="name">名称 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="category">分类 <span class="sort-arrow"></span></th>
+      <th class="sortable text-right" data-sort="unit_price">单价 <span class="sort-arrow"></span></th>
+      <th class="sortable text-center" data-sort="stock">库存 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="source">来源 <span class="sort-arrow"></span></th>
+      <th class="sortable" data-sort="box_length">尺寸 <span class="sort-arrow"></span></th>
+      <th>操作</th>
     </tr></thead><tbody id="product-table"></tbody></table></div>
     </div>
     <div id="product-grid-view"></div>
@@ -527,6 +549,8 @@ let productsCache = [];
 let productFilter = '';
 let productSearch = '';
 let productViewMode = 'grid';
+let productSortField = null;
+let productSortDir = 'asc';
 
 function setProductView(mode) {
   productViewMode = mode;
@@ -550,6 +574,20 @@ document.getElementById('product-search').addEventListener('input', e => {
   renderProducts();
 });
 
+// Sortable table headers
+document.querySelector('#product-table-card thead').addEventListener('click', e => {
+  const th = e.target.closest('th.sortable');
+  if (!th) return;
+  const field = th.dataset.sort;
+  if (productSortField === field) {
+    productSortDir = productSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    productSortField = field;
+    productSortDir = 'asc';
+  }
+  renderProducts();
+});
+
 async function loadProducts() {
   const res = await apiGet('/products');
   if (res.ok) { productsCache = res.data; renderProducts(); }
@@ -560,6 +598,21 @@ function renderProducts() {
   if (productFilter) list = list.filter(p => p.category === productFilter);
   if (productSearch) list = list.filter(p => p.name.includes(productSearch));
 
+  // Sort
+  if (productSortField) {
+    const dir = productSortDir === 'asc' ? 1 : -1;
+    const field = productSortField;
+    list = [...list].sort((a, b) => {
+      let va = a[field], vb = b[field];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va == null) va = '';
+      if (vb == null) vb = '';
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'zh-CN') * dir;
+    });
+  }
+
   if (productViewMode === 'grid') {
     renderProductsGrid(list);
   } else {
@@ -568,6 +621,15 @@ function renderProducts() {
 }
 
 function renderProductsTable(list) {
+  // Update header sort indicators
+  document.querySelectorAll('#product-table-card th.sortable').forEach(th => {
+    const field = th.dataset.sort;
+    th.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
+    if (field === productSortField) {
+      th.classList.add('sorted', productSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    }
+  });
+
   const tbody = document.getElementById('product-table');
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">暂无商品</div></td></tr>'; return; }
   tbody.innerHTML = list.map(p => `<tr>
