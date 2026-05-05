@@ -1304,12 +1304,13 @@ app.post('/api/ai-import', async (req, res) => {
   try {
     const kimiRes = await fetch(`${KIMI_BASE_URL}/chat/completions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KIMI_API_KEY}` },
-      body: JSON.stringify({ model: KIMI_MODEL, messages, temperature: 0.3, max_tokens: 1000 }),
-      signal: AbortSignal.timeout(30000)
+      body: JSON.stringify({ model: KIMI_MODEL, messages, temperature: 0.3, max_tokens: 2000 }),
+      signal: AbortSignal.timeout(60000)
     });
     if (!kimiRes.ok) { const t = await kimiRes.text(); return res.status(502).json({ ok: false, error: `Kimi API ${kimiRes.status}: ${t.slice(0,200)}` }); }
     const kd = await kimiRes.json();
-    const content = kd.choices?.[0]?.message?.content || '';
+    const msg = kd.choices?.[0]?.message || {};
+    const content = msg.content || msg.reasoning_content || '';
     let json = content.match(/\{[\s\S]*\}/)?.[0] || content;
     const extracted = JSON.parse(json);
     res.json({ ok: true, data: extracted });
