@@ -1191,14 +1191,93 @@ app.delete('/api/products/:id/image', (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── 确保 images 目录存在 ─────────────────────────────────────
+// ─── 数据库备份系统 ──────────────────────────────────────────────
+const BACKUP_DIR = path.join(__dirname, 'backup');
+const MAX_BACKUPS = 10;
+
+function backupDatabase() {
+  if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const backupPath = path.join(BACKUP_DIR, `inventory_${ts}.db`);
+
+  try {
+    // WAL checkpoint 确保数据一致
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    fs.copyFileSync(DB_PATH, backupPath);
+    console.log(`💾 备份完成: ${backupPath}`);
+
+    // 清理旧备份，只保留最近 MAX_BACKUPS 份
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('inventory_') && f.endsWith('.db'))
+      .sort();
+    while (files.length > MAX_BACKUPS) {
+      const old = path.join(BACKUP_DIR, files.shift());
+      fs.unlinkSync(old);
+      console.log(`🗑️ 清理旧备份: ${old}`);
+    }
+    return backupPath;
+  } catch (err) {
+    console.error('❌ 备份失败:', err.message);
+    return null;
+  }
+}
+
+// ─── 备份 API ───
+// GET /api/backup — 手动触发备份
+app.get('/api/backup', (req, res) => {
+  const backupPath = backupDatabase();
+  if (backupPath) res.json({ ok: true, data: { path: path.basename(backupPath), message: '备份成功' } });
+  else res.status(500).json({ ok: false, error: '备份失败' });
+});
+
+// GET /api/backup/list — 查看备份列表
+app.get('/api/backup/list', (req, res) => {
+  if (!fs.existsSync(BACKUP_DIR)) { res.json({ ok: true, data: [] }); return; }
+  const files = fs.readdirSync(BACKUP_DIR)
+    .filter(f => f.startsWith('inventory_') && f.endsWith('.db'))
+    .sort()
+    .reverse()
+    .map(f => {
+      const stat = fs.statSync(path.join(BACKUP_DIR, f));
+      return { name: f, size: (stat.size / 1024).toFixed(1) + ' KB', time: stat.mtime.toISOString() };
+    });
+  res.json({ ok: true, data: files });
+});
+
+// POST /api/backup/restore — 从备份恢复
+app.post('/api/backup/restore', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ ok: false, error: '请指定备份文件名' });
+  const backupPath = path.join(BACKUP_DIR, name);
+  if (!fs.existsSync(backupPath)) return res.status(404).json({ ok: false, error: '备份文件不存在' });
+
+  try {
+    // 先备份当前 DB
+    const preRestoreBackup = backupDatabase();
+    db.close();
+    fs.copyFileSync(backupPath, DB_PATH);
+    // 重新打开数据库
+    initDatabase();
+    res.json({ ok: true, data: { message: '恢复成功，服务已重启生效', pre_backup: preRestoreBackup ? path.basename(preRestoreBackup) : null } });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: '恢复失败: ' + err.message });
+  }
+});
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 if (!fs.existsSync(BUNDLE_IMAGES_DIR)) fs.mkdirSync(BUNDLE_IMAGES_DIR, { recursive: true });
 
 initDatabase();
 
+// 启动时自动备份
+backupDatabase();
+
+// 每小时自动备份
+setInterval(backupDatabase, 60 * 60 * 1000);
+
 app.listen(PORT, () => {
   console.log(`🎁 伴手礼管理后台已启动`);
   console.log(`   本地地址: http://localhost:${PORT}`);
   console.log(`   数据库: ${DB_PATH}`);
+  console.log(`   备份目录: ${BACKUP_DIR} (每小时自动备份，保留${MAX_BACKUPS}份)`);
 });
