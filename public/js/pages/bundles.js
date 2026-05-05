@@ -94,7 +94,7 @@ function renderBundleModal() {
     // ─── 图片上传区 ───
     '<div class="form-group"><label>方案展示图</label>' +
       '<div style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onclick="this.querySelector(\'input\').click()">' +
-        '<input type="file" accept="image/*" capture="environment" onchange="handleBundleImageSelect(this)" style="display:none">' +
+        '<input type="file" accept="image/*" onchange="handleBundleImageSelect(this)" style="display:none">' +
         '<div id="b-img-preview">' +
           (bundleEditor.existingImages.length > 0
             ? '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">' + bundleEditor.existingImages.map(function(img, idx) {
@@ -110,9 +110,13 @@ function renderBundleModal() {
       '<div class="form-group"><label>利润率 %</label><input type="number" id="b-margin" value="' + bundleEditor.marginRate + '" oninput="updateBundlePreview()"></div>' +
       '<div class="form-group"><label>预览</label><div style="padding:8px;background:#fef7f2;border-radius:6px">成本: <strong id="b-preview-cost">¥' + totalCost.toFixed(2) + '</strong> → 售价: <strong style="color:var(--orange)" id="b-preview-sell">¥' + sellPrice.toFixed(2) + '</strong></div></div>' +
     '</div>' +
-    // ─── 添加商品 ───
+    // ─── 添加商品（带搜索） ───
     '<div class="form-row">' +
-      '<div class="form-group"><label>添加商品</label><select id="b-product">' + productsHtml + '</select></div>' +
+      '<div class="form-group" style="position:relative"><label>添加商品</label>' +
+        '<input id="b-product-search" placeholder="🔍 搜索商品..." oninput="onBundleSearch(this.value)" onfocus="onBundleSearch(this.value)" autocomplete="off">' +
+        '<input id="b-product-id" type="hidden" value="">' +
+        '<div id="b-product-results" style="position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #ddd;border-radius:6px;max-height:220px;overflow-y:auto;z-index:999;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>' +
+      '</div>' +
       '<div class="form-group"><label>数量</label><input type="number" id="b-qty" value="1" min="1" style="max-width:80px"></div>' +
     '</div>' +
     '<button class="btn btn-sm" onclick="addBundleItem()" style="margin-bottom:12px">＋ 加入方案</button>' +
@@ -145,15 +149,60 @@ function renderBundleModal() {
 }
 
 function addBundleItem() {
-  var pid = parseInt(document.getElementById('b-product').value);
+  var pid = parseInt(document.getElementById('b-product-id').value);
+  if (!pid) { toast('请先搜索并选择一个商品', 'error'); return; }
   var qty = parseInt(document.getElementById('b-qty').value) || 1;
   var product = bundleEditor.allProducts.find(function(p) { return p.id === pid; });
   if (!product) return;
   var existing = bundleEditor.items.find(function(i) { return i.product_id === pid; });
   if (existing) { existing.quantity += qty; }
   else { bundleEditor.items.push({ product_id: pid, product_name: product.name, unit_price: product.unit_price, quantity: qty, image: product.image }); }
+  document.getElementById('b-product-search').value = '';
+  document.getElementById('b-product-id').value = '';
+  document.getElementById('b-product-results').style.display = 'none';
   renderBundleModal();
 }
+
+// ─── 商品搜索 ───
+function onBundleSearch(query) {
+  var results = document.getElementById('b-product-results');
+  if (!query) { results.style.display = 'none'; return; }
+  var q = query.toLowerCase();
+  var matched = bundleEditor.allProducts.filter(function(p) {
+    // 排除已加入的
+    if (bundleEditor.items.some(function(i) { return i.product_id === p.id; })) return false;
+    return p.name.toLowerCase().indexOf(q) !== -1;
+  });
+  if (matched.length === 0) {
+    results.innerHTML = '<div style="padding:10px;color:#999;text-align:center">无匹配商品</div>';
+  } else {
+    results.innerHTML = matched.map(function(p) {
+      return '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-light);transition:background 0.15s" ' +
+        'onmouseover="this.style.background=\'#fef7f2\'" onmouseout="this.style.background=\'\'" ' +
+        'onclick="selectBundleProduct(' + p.id + ')">' +
+        '<span>📦 ' + esc(p.name) + '</span> ' +
+        '<span style="float:right;color:var(--orange)">¥' + (p.unit_price || 0).toFixed(2) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+  results.style.display = 'block';
+}
+
+function selectBundleProduct(id) {
+  var p = bundleEditor.allProducts.find(function(p) { return p.id === id; });
+  if (!p) return;
+  document.getElementById('b-product-id').value = id;
+  document.getElementById('b-product-search').value = p.name + ' (¥' + (p.unit_price || 0).toFixed(2) + ')';
+  document.getElementById('b-product-results').style.display = 'none';
+}
+
+// 点击页面空白关闭搜索结果
+document.addEventListener('click', function(e) {
+  var results = document.getElementById('b-product-results');
+  if (results && !e.target.closest('#b-product-search') && !e.target.closest('#b-product-results')) {
+    results.style.display = 'none';
+  }
+});
 
 function addNestedBundle() {
   var bid = parseInt(document.getElementById('b-nested-bundle').value);

@@ -9,7 +9,7 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'inventory.db');
 const IMAGES_DIR = path.join(__dirname, 'public', 'images');
 const BUNDLE_IMAGES_DIR = path.join(__dirname, 'public', 'images', 'bundles');
@@ -1304,7 +1304,7 @@ app.post('/api/ai-import', async (req, res) => {
   try {
     const kimiRes = await fetch(`${KIMI_BASE_URL}/chat/completions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KIMI_API_KEY}` },
-      body: JSON.stringify({ model: KIMI_MODEL, messages, temperature: 0.3, max_tokens: 2000 }),
+      body: JSON.stringify({ model: KIMI_MODEL, messages, temperature: 1, max_tokens: 2000 }),
       signal: AbortSignal.timeout(60000)
     });
     if (!kimiRes.ok) { const t = await kimiRes.text(); return res.status(502).json({ ok: false, error: `Kimi API ${kimiRes.status}: ${t.slice(0,200)}` }); }

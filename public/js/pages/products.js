@@ -192,7 +192,7 @@ function openProductModal(id) {
     '<div class="form-group"><label>名称 *</label><input id="pf-name" value="' + escAttr(product ? product.name : '') + '"></div>' +
     '<div class="form-group"><label>商品图片</label>' +
       '<div style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onclick="this.querySelector(\'input\').click()">' +
-        '<input type="file" accept="image/*" capture="environment" onchange="handleImageSelect(this)" style="display:none">' +
+        '<input type="file" accept="image/*" onchange="handleImageSelect(this)" style="display:none">' +
         '<div id="pf-img-preview">' + (product && product.image ? '<img src="/images/' + esc(product.image) + '" style="max-width:160px;max-height:160px;border-radius:8px"><br><small style="color:var(--text-secondary)">📸 点击更换照片</small>' : '📸 点击拍照或选图') + '</div>' +
       '</div></div>' +
     '<div class="form-row">' +
@@ -337,7 +337,7 @@ function openAIImport() {
     '<div style="text-align:center;padding:10px 0 20px;color:var(--text-secondary);font-size:13px">拍照/截图 或 粘贴链接，AI 自动识别商品信息</div>' +
     // ── 图片上传 ──
     '<div style="border:2px dashed var(--orange);border-radius:12px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="this.querySelector(\'input\').click()">' +
-      '<input type="file" accept="image/*" capture="environment" onchange="handleAIImageSelect(this)" style="display:none">' +
+      '<input type="file" accept="image/*" onchange="handleAIImageSelect(this)" style="display:none">' +
       '<div id="ai-img-preview">📸 点击拍照或选择截图</div>' +
     '</div>' +
     // ── 链接输入 ──
