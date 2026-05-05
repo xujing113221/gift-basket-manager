@@ -191,8 +191,8 @@ function openProductModal(id) {
     '<div class="form-group"><label>名称 *</label><input id="pf-name" value="' + escAttr(product ? product.name : '') + '"></div>' +
     '<div class="form-group"><label>商品图片</label>' +
       '<div style="border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onclick="this.querySelector(\'input\').click()">' +
-        '<input type="file" accept="image/*" onchange="handleImageSelect(this)" style="display:none">' +
-        '<div id="pf-img-preview">' + (product && product.image ? '<img src="/images/' + esc(product.image) + '" style="max-width:160px;max-height:160px;border-radius:8px"><br><small style="color:var(--text-secondary)">点击更换</small>' : '📷 点击上传图片') + '</div>' +
+        '<input type="file" accept="image/*" capture="environment" onchange="handleImageSelect(this)" style="display:none">' +
+        '<div id="pf-img-preview">' + (product && product.image ? '<img src="/images/' + esc(product.image) + '" style="max-width:160px;max-height:160px;border-radius:8px"><br><small style="color:var(--text-secondary)">📸 点击更换照片</small>' : '📸 点击拍照或选图') + '</div>' +
       '</div></div>' +
     '<div class="form-row">' +
       '<div class="form-group"><label>分类 *</label><select id="pf-category">' + ['盒子','辅料','糖果','单品'].map(function(c) { return '<option' + (product && product.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
