@@ -1041,6 +1041,25 @@ app.delete('/api/quotes/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── 数据质量 API ─────────────────────────────────────────────
+
+// GET /api/data-quality — 检查数据异常
+app.get('/api/data-quality', (req, res) => {
+  const issues = [];
+  // 疑似总价当单价
+  const badPrices = db.prepare("SELECT id, name, unit_price, stock, category FROM products WHERE unit_price > 10 AND category != '盒子' AND stock > 0 ORDER BY unit_price DESC LIMIT 10").all();
+  if (badPrices.length > 0) {
+    issues.push({ type: 'price', label: '疑似总价当单价（价格偏高）', count: badPrices.length, items: badPrices });
+  }
+  // 无图商品
+  const noImg = db.prepare("SELECT COUNT(*) as c FROM products WHERE image IS NULL OR image = ''").get().c;
+  if (noImg > 0) issues.push({ type: 'no_image', label: '缺少图片', count: noImg });
+  // 无链接商品
+  const noLink = db.prepare("SELECT COUNT(*) as c FROM products WHERE link IS NULL OR link = ''").get().c;
+  if (noLink > 0) issues.push({ type: 'no_link', label: '缺少来源链接', count: noLink });
+  res.json({ ok: true, data: { issues, total_issues: issues.reduce((s,i)=>s+i.count,0) } });
+});
+
 // ─── 启动服务器 ───────────────────────────────────────────────
 
 // 确保 images 目录存在

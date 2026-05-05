@@ -251,6 +251,12 @@ textarea { resize: vertical; min-height: 60px; }
 /* ─── 空状态 ─── */
 .empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
 
+/* ─── 加载动画 ─── */
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ─── 价格异常提示 ─── */
+.price-warn { color: #f59e0b; font-size: 11px; margin-left: 4px; cursor: help; }
+
 /* ══════════════════════════════════════════════════
    响应式 — 平板 (768px - 1023px)
    ══════════════════════════════════════════════════ */

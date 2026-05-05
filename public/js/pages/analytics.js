@@ -3,6 +3,7 @@ async function loadAnalytics(container) {
   var pRes = await apiGet('/products');
   var bRes = await apiGet('/bundles');
   var sRes = await apiGet('/stock-records');
+  var qRes = await apiGet('/data-quality');
 
   var products = pRes.ok ? pRes.data : [];
   var bundles = bRes.ok ? bRes.data : [];
@@ -37,6 +38,11 @@ async function loadAnalytics(container) {
       '<div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-value">¥' + monthCost.toFixed(0) + '</div><div class="stat-label">近30天采购</div></div>' +
       '<div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value">' + bundles.length + '</div><div class="stat-label">方案总数</div></div>' +
     '</div>' +
+    (qRes.ok && qRes.data.issues.length > 0 ? '<div class="card" style="border-left:3px solid #f59e0b"><div class="card-title">⚠️ 数据质量提醒 (' + qRes.data.total_issues + '项)</div>' +
+      qRes.data.issues.map(function(iss) {
+        return '<div style="font-size:13px;padding:4px 0">' + iss.label + '：<strong>' + iss.count + '</strong>个' +
+          (iss.items ? ' <span style="color:var(--text-muted);font-size:11px">(' + iss.items.slice(0,5).map(function(i){return i.name}).join('、') + '等)</span>' : '') + '</div>';
+      }).join('') + '</div>' : '') +
     '<div class="dash-grid">' +
       '<div class="card"><div class="card-title">📂 品类分布</div>' +
         Object.keys(catCount).map(function(cat) {

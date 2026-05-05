@@ -101,7 +101,8 @@ function renderProductsTable(list) {
             : '<div class="thumb-placeholder">📷</div>') + '</td>' +
           '<td><a style="color:var(--orange);cursor:pointer;font-weight:600" onclick="productDetail(' + p.id + ')">' + esc(p.name) + '</a></td>' +
           '<td><span class="badge badge-primary">' + p.category + '</span></td>' +
-          '<td class="text-right money">¥' + (p.unit_price || 0).toFixed(2) + '</td>' +
+          '<td class="text-right money">¥' + (p.unit_price || 0).toFixed(2) +
+            ((p.unit_price > 10 && p.category !== '盒子') ? ' <span class="price-warn" title="价格偏高，可能是总价？点击编辑修正">⚠️</span>' : '') + '</td>' +
           '<td class="text-center">' + (p.stock || 0) + '</td>' +
           '<td>' + (p.source || '-') + '</td>' +
           '<td>' + (p.box_length ? p.box_length + '×' + (p.box_width||'-') + '×' + (p.box_height||'-') : '-') + '</td>' +
@@ -138,6 +139,7 @@ function renderProductsGrid(list) {
         '<div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:4px;font-size:13px">' +
           '<strong style="color:var(--orange)">¥' + (p.unit_price || 0).toFixed(2) + '</strong>' +
+          ((p.unit_price > 10 && p.category !== '盒子') ? ' <span class="price-warn" title="可能为总价">⚠️</span>' : '') +
           '<span style="color:var(--text-secondary)">库存: ' + (p.stock || 0) + '</span>' +
         '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (p.source || '') + (p.box_length ? ' · ' + p.box_length + '×' + (p.box_width||'') + 'cm' : '') + '</div>' +

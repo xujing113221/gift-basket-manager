@@ -22,6 +22,7 @@ function navigateTo(page) {
 
 function loadPage(page) {
   var container = document.getElementById('page-container');
+  container.innerHTML = '<div class="empty" style="padding:60px"><div style="font-size:32px;animation:pulse 1s infinite">⏳</div><div style="margin-top:8px">加载中...</div></div>';
   var loaders = {
     dashboard: loadDashboard, products: loadProducts, sourcing: loadSourcing,
     bundles: loadBundles, analytics: loadAnalytics, stock: loadStockRecords,
@@ -30,7 +31,7 @@ function loadPage(page) {
   if (loaders[page]) {
     loaders[page](container);
   } else {
-    container.innerHTML = '<div class="empty">页面加载中...</div>';
+    container.innerHTML = '<div class="empty">页面不存在</div>';
   }
 }
 
