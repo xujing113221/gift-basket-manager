@@ -131,6 +131,16 @@ function createTables() {
       created_at  TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (bundle_id) REFERENCES bundles(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS bundle_nested (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_bundle_id INTEGER NOT NULL,
+      child_bundle_id  INTEGER NOT NULL,
+      quantity         INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (parent_bundle_id) REFERENCES bundles(id) ON DELETE CASCADE,
+      FOREIGN KEY (child_bundle_id) REFERENCES bundles(id),
+      UNIQUE(parent_bundle_id, child_bundle_id)
+    );
   `);
 }
 
@@ -479,7 +489,13 @@ app.get('/api/bundles', (req, res) => {
       WHERE bi.bundle_id = ?
     `).all(b.id);
     const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(b.id);
-    return { ...b, items, images };
+    const nested = db.prepare(`
+      SELECT bn.*, cb.name as bundle_name, cb.total_cost, cb.sell_price
+      FROM bundle_nested bn
+      JOIN bundles cb ON bn.child_bundle_id = cb.id
+      WHERE bn.parent_bundle_id = ?
+    `).all(b.id);
+    return { ...b, items, images, nested };
   });
   res.json({ ok: true, data });
 });
@@ -495,27 +511,47 @@ app.get('/api/bundles/:id', (req, res) => {
     WHERE bi.bundle_id = ?
   `).all(b.id);
   const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(b.id);
-  res.json({ ok: true, data: { ...b, items, images } });
+  const nested = db.prepare(`
+    SELECT bn.*, cb.name as bundle_name, cb.total_cost, cb.sell_price
+    FROM bundle_nested bn
+    JOIN bundles cb ON bn.child_bundle_id = cb.id
+    WHERE bn.parent_bundle_id = ?
+  `).all(b.id);
+  res.json({ ok: true, data: { ...b, items, images, nested } });
 });
 
 // POST /api/bundles
 app.post('/api/bundles', (req, res) => {
-  const { name, box_type, box_id, items, margin_rate, notes } = req.body;
+  const { name, box_type, box_id, items, nested, margin_rate, notes } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ ok: false, error: '方案名称不能为空' });
-  if (!items || items.length === 0) return res.status(400).json({ ok: false, error: '方案至少包含1个商品' });
+  // 允许空 items（只要有 nested 也行）
+  const hasItems = items && items.length > 0;
+  const hasNested = nested && nested.length > 0;
+  if (!hasItems && !hasNested) return res.status(400).json({ ok: false, error: '方案至少包含1个商品或子方案' });
 
   const rate = margin_rate !== undefined ? margin_rate : 70;
 
   // 计算总成本
   let totalCost = 0;
   const resolvedItems = [];
-  for (const item of items) {
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
-    if (!product) return res.status(400).json({ ok: false, error: `商品ID ${item.product_id} 不存在` });
-    const qty = item.quantity || 1;
-    const unitPrice = item.unit_price || product.unit_price;
-    totalCost += unitPrice * qty;
-    resolvedItems.push({ product_id: product.id, quantity: qty, unit_price: unitPrice });
+  if (hasItems) {
+    for (const item of items) {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
+      if (!product) return res.status(400).json({ ok: false, error: `商品ID ${item.product_id} 不存在` });
+      const qty = item.quantity || 1;
+      const unitPrice = item.unit_price || product.unit_price;
+      totalCost += unitPrice * qty;
+      resolvedItems.push({ product_id: product.id, quantity: qty, unit_price: unitPrice });
+    }
+  }
+
+  // 计算嵌套子方案成本
+  if (hasNested) {
+    for (const nb of nested) {
+      const child = db.prepare('SELECT * FROM bundles WHERE id = ?').get(nb.bundle_id);
+      if (!child) return res.status(400).json({ ok: false, error: `子方案ID ${nb.bundle_id} 不存在` });
+      totalCost += (child.total_cost || 0) * (nb.quantity || 1);
+    }
   }
 
   const marginAmount = totalCost * rate / 100;
@@ -532,12 +568,20 @@ app.post('/api/bundles', (req, res) => {
     insertItem.run(bId, ri.product_id, ri.quantity, ri.unit_price);
   }
 
+  // 插入嵌套子方案
+  if (hasNested) {
+    const insertNested = db.prepare('INSERT INTO bundle_nested (parent_bundle_id, child_bundle_id, quantity) VALUES (?, ?, ?)');
+    for (const nb of nested) {
+      insertNested.run(bId, nb.bundle_id, nb.quantity || 1);
+    }
+  }
+
   const data = db.prepare('SELECT * FROM bundles WHERE id = ?').get(bId);
   const dataItems = db.prepare(`
     SELECT bi.*, p.name as product_name, p.category, p.unit, p.image
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bId);
-  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images: [] } });
+  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images: [], nested: hasNested ? nested : [] } });
 });
 
 // PUT /api/bundles/:id
@@ -553,14 +597,14 @@ app.put('/api/bundles/:id', (req, res) => {
   if (req.body.status) db.prepare('UPDATE bundles SET status = ? WHERE id = ?').run(req.body.status, id);
   if (req.body.notes !== undefined) db.prepare('UPDATE bundles SET notes = ? WHERE id = ?').run(req.body.notes, id);
 
-  // 如果传了 margin_rate 或 items，重新计算成本
-  if (req.body.margin_rate !== undefined || req.body.items !== undefined) {
+  // 如果传了 margin_rate、items 或 nested，重新计算成本
+  const needRecalc = req.body.margin_rate !== undefined || req.body.items !== undefined || req.body.nested !== undefined;
+  if (needRecalc) {
     const rate = req.body.margin_rate !== undefined ? req.body.margin_rate : existing.margin_rate;
+    let totalCost = 0;
 
     if (req.body.items !== undefined) {
-      // 替换所有 items
       db.prepare('DELETE FROM bundle_items WHERE bundle_id = ?').run(id);
-      let totalCost = 0;
       const insertItem = db.prepare('INSERT INTO bundle_items (bundle_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)');
       for (const item of req.body.items) {
         const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
@@ -570,17 +614,34 @@ app.put('/api/bundles/:id', (req, res) => {
         totalCost += unitPrice * qty;
         insertItem.run(id, item.product_id, qty, unitPrice);
       }
-      const marginAmount = totalCost * rate / 100;
-      db.prepare('UPDATE bundles SET total_cost = ?, sell_price = ?, margin_rate = ?, margin_amount = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
-        .run(totalCost, totalCost + marginAmount, rate, marginAmount, id);
     } else {
-      // 只改利润率，用现有 items 重算
-      const items = db.prepare('SELECT SUM(subtotal) as total FROM bundle_items WHERE bundle_id = ?').get(id);
-      const totalCost = items.total || 0;
-      const marginAmount = totalCost * rate / 100;
-      db.prepare('UPDATE bundles SET total_cost = ?, sell_price = ?, margin_rate = ?, margin_amount = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
-        .run(totalCost, totalCost + marginAmount, rate, marginAmount, id);
+      const itemSum = db.prepare('SELECT SUM(subtotal) as total FROM bundle_items WHERE bundle_id = ?').get(id);
+      totalCost += (itemSum.total || 0);
     }
+
+    // 处理嵌套子方案
+    if (req.body.nested !== undefined) {
+      db.prepare('DELETE FROM bundle_nested WHERE parent_bundle_id = ?').run(id);
+      const insertNested = db.prepare('INSERT INTO bundle_nested (parent_bundle_id, child_bundle_id, quantity) VALUES (?, ?, ?)');
+      for (const nb of req.body.nested) {
+        const child = db.prepare('SELECT * FROM bundles WHERE id = ?').get(nb.bundle_id);
+        if (!child) continue;
+        totalCost += (child.total_cost || 0) * (nb.quantity || 1);
+        insertNested.run(id, nb.bundle_id, nb.quantity || 1);
+      }
+    } else {
+      // 保持现有嵌套，只加成本
+      const nestedSum = db.prepare(`
+        SELECT SUM(bn.quantity * COALESCE(cb.total_cost, 0)) as total
+        FROM bundle_nested bn JOIN bundles cb ON bn.child_bundle_id = cb.id
+        WHERE bn.parent_bundle_id = ?
+      `).get(id);
+      totalCost += (nestedSum.total || 0);
+    }
+
+    const marginAmount = totalCost * rate / 100;
+    db.prepare('UPDATE bundles SET total_cost = ?, sell_price = ?, margin_rate = ?, margin_amount = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
+      .run(totalCost, totalCost + marginAmount, rate, marginAmount, id);
   } else {
     db.prepare("UPDATE bundles SET updated_at = datetime('now','localtime') WHERE id = ?").run(id);
   }
@@ -591,7 +652,12 @@ app.put('/api/bundles/:id', (req, res) => {
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(id);
   const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(id);
-  res.json({ ok: true, data: { ...data, items: dataItems, images } });
+  const nested = db.prepare(`
+    SELECT bn.*, cb.name as bundle_name, cb.total_cost, cb.sell_price
+    FROM bundle_nested bn JOIN bundles cb ON bn.child_bundle_id = cb.id
+    WHERE bn.parent_bundle_id = ?
+  `).all(id);
+  res.json({ ok: true, data: { ...data, items: dataItems, images, nested } });
 });
 
 // DELETE /api/bundles/:id
@@ -626,7 +692,12 @@ app.post('/api/bundles/:id/items', (req, res) => {
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
   const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(bundleId);
-  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images } });
+  const nested = db.prepare(`
+    SELECT bn.*, cb.name as bundle_name, cb.total_cost, cb.sell_price
+    FROM bundle_nested bn JOIN bundles cb ON bn.child_bundle_id = cb.id
+    WHERE bn.parent_bundle_id = ?
+  `).all(bundleId);
+  res.status(201).json({ ok: true, data: { ...data, items: dataItems, images, nested } });
 });
 
 // DELETE /api/bundles/:bundleId/items/:itemId — 从方案移除商品
@@ -638,7 +709,14 @@ app.delete('/api/bundles/:bundleId/items/:itemId', (req, res) => {
   db.prepare('DELETE FROM bundle_items WHERE id = ? AND bundle_id = ?').run(itemId, bundleId);
 
   const items = db.prepare('SELECT SUM(subtotal) as total FROM bundle_items WHERE bundle_id = ?').get(bundleId);
-  const totalCost = items.total || 0;
+  let totalCost = items.total || 0;
+  // 加上嵌套子方案成本
+  const nestedSum = db.prepare(`
+    SELECT SUM(bn.quantity * COALESCE(cb.total_cost, 0)) as total
+    FROM bundle_nested bn JOIN bundles cb ON bn.child_bundle_id = cb.id
+    WHERE bn.parent_bundle_id = ?
+  `).get(bundleId);
+  totalCost += (nestedSum.total || 0);
   const marginAmount = totalCost * bundle.margin_rate / 100;
   db.prepare('UPDATE bundles SET total_cost = ?, sell_price = ?, margin_amount = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
     .run(totalCost, totalCost + marginAmount, marginAmount, bundleId);
@@ -649,7 +727,12 @@ app.delete('/api/bundles/:bundleId/items/:itemId', (req, res) => {
     FROM bundle_items bi JOIN products p ON bi.product_id = p.id WHERE bi.bundle_id = ?
   `).all(bundleId);
   const images = db.prepare('SELECT * FROM bundle_images WHERE bundle_id = ? ORDER BY sort_order').all(bundleId);
-  res.json({ ok: true, data: { ...data, items: dataItems, images } });
+  const nested = db.prepare(`
+    SELECT bn.*, cb.name as bundle_name, cb.total_cost, cb.sell_price
+    FROM bundle_nested bn JOIN bundles cb ON bn.child_bundle_id = cb.id
+    WHERE bn.parent_bundle_id = ?
+  `).all(bundleId);
+  res.json({ ok: true, data: { ...data, items: dataItems, images, nested } });
 });
 
 // ── 竞品对比 API ──
